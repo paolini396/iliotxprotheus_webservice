@@ -275,6 +275,7 @@ Method Store(oServiceOrdersList as object) Class TServiceOrderService
 				oServiceOrderBase := Nil
 
 				oErrorJsonItem := JsonObject():New()
+				
 				//validar e buscar produto da Base de Atendimento
 				oServiceOrderBase := oServiceOrderBaseService:FindByCustomerIdAndId(;
 					oServiceOrdersList:GetItem(nIndex):cCustomerCode, ;
