@@ -1,6 +1,6 @@
 <div align="center">
 
-# :rocket: INTEGRAÇÃO PROTHEUS X ILIOT :rocket:
+# :rocket: INTEGRAÇÃO ILIOT x PROTHEUS :rocket:
 
 </div>
 
