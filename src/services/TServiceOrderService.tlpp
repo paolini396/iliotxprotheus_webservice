@@ -1,4 +1,5 @@
 #INCLUDE 'TOTVS.CH'
+#INCLUDE 'PROTHEUS.CH'
 #INCLUDE 'TOPCONN.CH'
 
 Class TServiceOrderService
@@ -179,6 +180,7 @@ Method Store(oServiceOrdersList as object) Class TServiceOrderService
 				aAdd(oServiceOrdersList:GetItem(nIndex):aErrors, oErrorJson)
 
 				loop
+
 			endif
 
 			oPlace := oPlaceService:FindById(oServiceOrdersList:GetItem(nIndex):cPlaceId)
@@ -190,6 +192,7 @@ Method Store(oServiceOrdersList as object) Class TServiceOrderService
 				aAdd(oServiceOrdersList:GetItem(nIndex):aErrors, oErrorJson)
 
 				loop
+
 			endif
 
 			// Base de Atendimento
@@ -210,6 +213,7 @@ Method Store(oServiceOrdersList as object) Class TServiceOrderService
 					aAdd(oServiceOrderItems:GetItem(nIndex):aErrors, oErrorJsonItem)
 
 					break
+
 				endif
 
 				// Buscando Base de Atendimento
@@ -218,7 +222,7 @@ Method Store(oServiceOrdersList as object) Class TServiceOrderService
 					oServiceOrdersList:GetItem(nIndex):cCustomerStore, ;
 					oServiceOrderItems:GetItem(nIndexItem):cEquipamentCode, ;
 					oServiceOrderItems:GetItem(nIndex):cSerialNumber  ;
-					)
+				)
 
 				//Verifica se existe Base de Atendimento
 				if (!oServiceOrderBase["data"]:GetCount() > 0)
@@ -251,7 +255,6 @@ Method Store(oServiceOrdersList as object) Class TServiceOrderService
 
 			next nIndexItem
 
-
 			// Criar Ordem de Serviço
 			aHeader := {}
 			aAdd(aHeader, { "AB6_FILIAL"  , xFilial("AB6")                                                           , Nil })
@@ -275,14 +278,14 @@ Method Store(oServiceOrdersList as object) Class TServiceOrderService
 				oServiceOrderBase := Nil
 
 				oErrorJsonItem := JsonObject():New()
-				
+
 				//validar e buscar produto da Base de Atendimento
 				oServiceOrderBase := oServiceOrderBaseService:FindByCustomerIdAndId(;
 					oServiceOrdersList:GetItem(nIndex):cCustomerCode, ;
 					oServiceOrdersList:GetItem(nIndex):cCustomerStore, ;
 					oServiceOrderItems:GetItem(nIndexItem):cEquipamentCode, ;
 					oServiceOrderItems:GetItem(nIndex):cSerialNumber  ;
-					)
+				)
 
 				if (!oServiceOrderBase["data"]:GetCount() > 0)
 
@@ -338,7 +341,7 @@ Method Store(oServiceOrdersList as object) Class TServiceOrderService
 
 					ConfirmSX8()
 
-					oServiceOrdersList:GetItem(nIndex):cCode := U_GetCodAB6()
+					//oServiceOrdersList:GetItem(nIndex):cCode := U_GetCodAB6()
 
 				endif
 
@@ -360,237 +363,7 @@ Method Store(oServiceOrdersList as object) Class TServiceOrderService
 	RestArea(aArea)
 
 Return(oServiceOrdersList)
-
-Method Update(oServiceOrdersList as object) Class TServiceOrderService
-
-	Local aArea := GetArea() as array
-	local nIndex := 0 as numeric
-	Local nIndexItem := 0 as numeric
-	Local nOperation := 4 as numeric // ALTERAÇÃO
-	Local oErrorJson := Nil as object
-	Local oServiceOrder := Nil as object
-	local oServiceOrderItems := Nil as Object
-
-	Private aVetor := {}
-	Private INCLUI := .F.
-	Private lMsErroAuto := .T.
-	Private lMsHelpAuto := .T.
-	Private lAutoErrNoFile := .T.
-
-	begin sequence
-
-		for nIndex := 1 to oServiceOrdersList:GetCount()
-
-			oErrorJson := JsonObject():New()
-
-			oServiceOrder := ::FindById(oServiceOrdersList:GetItem(nIndex):cCode)
-
-			if (!oServiceOrder["data"]:GetCount() > 0)
-
-				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
-				oErrorJson["message"] := EncodeUTF8("Order de Serviço com o id " + oServiceOrdersList:GetItem(nIndex):cCode + " não existe no Protheus.")
-				aAdd(oServiceOrdersList:GetItem(nIndex):aErrors, oErrorJson)
-
-				loop
-
-			endif
-
-			aHeader := {}
-			aAdd(aHeader, { "AB6_FILIAL"  , AllTrim(oServiceOrder["data"]:GetItem(1):cBranchCode )                   , Nil })
-			aAdd(aHeader, { "AB6_NUMOS"   , AllTrim(oServiceOrder["data"]:GetItem(1):cCode )                         , Nil })
-			aAdd(aHeader, { "AB6_CODCLI"  , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cCustomerCode))         , Nil })
-			aAdd(aHeader, { "AB6_LOJA"    , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cCustomerStore))        , Nil })
-			aAdd(aHeader, { "AB6_ATEND"   , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cAttendant))            , Nil })
-			aAdd(aHeader, { "AB6_STATUS"  , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cStatus))               , Nil })
-			aAdd(aHeader, { "AB6_CONDPAG" , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cPaymentTerms))         , Nil })
-			aAdd(aHeader, { "AB6_YOBS"    , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cObservation))          , Nil })
-			aAdd(aHeader, { "AB6_YCODTE"  , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cTechnicalCode))        , Nil })
-			aAdd(aHeader, { "AB6_YCLI"    , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cCustomerInvoiceCode))  , Nil })
-			aAdd(aHeader, { "AB6_YLJCLI"  , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cCustomerInvoiceStore)) , Nil })
-			aAdd(aHeader, { "AB6_YTELCO"  , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cContactPhone))         , Nil })
-			aAdd(aHeader, { "AB6_YSOLIC"  , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cRequestedBy))          , Nil })
-			aAdd(aHeader, { "AB6_YLOREF"  , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cLocalRef))             , Nil })
-			aAdd(aHeader, { "AB6_YPROCU"  , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cContactName))          , Nil })
-			aAdd(aHeader, { "AB6_YCONTR"  , Upper(AllTrim(oServiceOrdersList:GetItem(nIndex):cContractCode))         , Nil })
-
-			oServiceOrderItems := oServiceOrdersList:GetItem(nIndex):aItems
-
-			for nIndexItem := 1 to oServiceOrderItems:GetCount()
-
-
-				// TODO: Validação do item que está sendo manipulado
-
-				aItems := {}
-				aAdd(aItems, { "AB7_FILIAL"  , AllTrim(oServiceOrder["data"]:GetItem(1):aItems[""] )                 , Nil })
-				aAdd(aItems, { "AB7_ITEM"    , cValToChar(nIndexItem)                                                 , Nil })
-				aAdd(aItems, { "AB7_TIPO"    , Upper(AllTrim(oServiceOrderItems:GetItem(nIndexItem):cType))           , Nil })
-				aAdd(aItems, { "AB7_CODPROD" , Upper(AllTrim(oServiceOrderItems:GetItem(nIndexItem):cEquipamentCode)) , Nil })
-				aAdd(aItems, { "AB7_NUMSER"  , Upper(AllTrim(oServiceOrderItems:GetItem(nIndexItem):cId))             , Nil })
-				aAdd(aItems, { "AB7_CODPRB"  , Upper(AllTrim(oServiceOrderItems:GetItem(nIndexItem):cOccurrenceCode)) , Nil })
-				aAdd(aItems, { "AB7_CODCLI"  , Upper(AllTrim(oServiceOrderItems:GetItem(nIndexItem):cCustomerCode))   , Nil })
-				aAdd(aItems, { "AB7_LOJA"    , Upper(AllTrim(oServiceOrderItems:GetItem(nIndexItem):cCustomerStore))  , Nil })
-				aAdd(aItems, { "AB7_YDTATE"  , oServiceOrderItems:GetItem(nIndexItem):dServiceAt                    , Nil })
-
-			next nIndexItem
-
-			aHeader := aClone(aHeader)
-
-			aItems := aClone(::OrderData(aItems, "AB7"))
-
-			begin Transaction
-
-				SetFunName("TECA450")
-
-				lMsErroAuto := .F.
-
-				TECA450(,aHeader,aItems, ,nOperation)
-
-				if (lMsErroAuto)
-
-					DisarmTransaction()
-
-					oErrorJson["type"] := "E_EXECAUTO"
-					oErrorJson["message"] := EncodeUTF8("Erro ao cadastrar Ordem de Serviço no Protheus. Favor verificar os campos!")
-					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
-					aAdd(oServiceOrdersList:GetItem(nIndex):aErrors, oErrorJson)
-
-				endif
-
-			end transaction
-
-		next nIndex
-
-	end sequence
-
-
-	if !Empty(cError)
-
-		RestArea(aArea)
-
-		break
-
-	endif
-
-	RestArea(aArea)
-
-Return(oServiceOrdersList)
-
-Method Show(cServiceOrderId as character) Class TServiceOrderService
-
-	Local oErrorJson := Nil as object
-	Local oServiceOrder := JsonObject():New() as object
-
-	begin sequence
-
-		oServiceOrder := ::FindById(cServiceOrderId)
-
-		oErrorJson := JsonObject():New()
-
-		if (!oServiceOrder["data"]:GetCount() > 0)
-
-			cError := EncodeUTF8("Euipamento/Produto com o id " + cServiceOrderId + " não existe no Protheus.")
-
-			break
-
-		endif
-
-	end sequence
-
-	if !Empty(cError)
-
-		break
-
-	endif
-
-Return(oServiceOrder)
-
-Method Destroy(oServiceOrdersList as object) Class TServiceOrderService
-
-	Local aArea := GetArea() as character
-	local nIndex := 0 as numeric
-	Local nOperation := 5 as numeric // EXCLUSÃO
-	Local oErrorJson := Nil as object
-	Local oServiceOrder := Nil as object
-
-	Private aVetor := {}
-	Private INCLUI := .F.
-	Private lMsErroAuto := .T.
-	Private lMsHelpAuto := .T.
-	Private lAutoErrNoFile := .T.
-
-	begin sequence
-
-		for nIndex := 1 to oServiceOrdersList:getCount()
-
-			oErrorJson := JsonObject():New()
-
-			oServiceOrder := ::FindById(oServiceOrdersList:GetItem(nIndex):cCode)
-
-			if (!oServiceOrder["data"]:GetCount() > 0)
-
-				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
-				oErrorJson["message"] := EncodeUTF8("Equipamento/Produto com o id " + oServiceOrdersList:GetItem(nIndex):cCode + " não existe no Protheus.")
-				aAdd(oServiceOrdersList:GetItem(nIndex):aErrors, oErrorJson)
-
-				loop
-			endif
-
-			aVetor := {}
-			aAdd(aVetor, {"B1_FILIAL" , xFilial("SB1"), Nil})
-			aAdd(aVetor, {"B1_COD" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cCode)), Nil})
-			aAdd(aVetor, {"B1_DESC" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cDescription)), Nil})
-			aAdd(aVetor, {"B1_TIPO" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cType)), Nil})
-			aAdd(aVetor, {"B1_UM" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cUnitMeasure)), Nil})
-			aAdd(aVetor, {"B1_LOCPAD" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cStockWarehouse)), Nil})
-			aAdd(aVetor, {"B1_GRUPO" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cStockGroup)), Nil})
-			aAdd(aVetor, {"B1_PICM" , oServiceOrder["data"]:GetItem(1):nPercentageIcms, Nil})
-			aAdd(aVetor, {"B1_IPI" , oServiceOrder["data"]:GetItem(1):nPercentageIpi, Nil})
-			aAdd(aVetor, {"B1_POSIPI" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cNcm)), Nil})
-			aAdd(aVetor, {"B1_TIPCONV" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cConversionType)), Nil})
-			aAdd(aVetor, {"B1_UREV" , SToD(oServiceOrder["data"]:GetItem(1):dRevisionDate), Nil})
-			aAdd(aVetor, {"B1_DATREF" ,SToD(oServiceOrder["data"]:GetItem(1):dCostRefDate), Nil})
-			//aAdd(aVetor, {"B1_YREF" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cReference)), Nil})
-			//aAdd(aVetor, {"B1_YMODELO" , Upper(AllTrim(oServiceOrder["data"]:GetItem(1):cModel)), Nil})
-
-			aVetor := aClone(::OrderData(aVetor))
-
-			begin Transaction
-
-				SetFunName("MATA010")
-
-				lMsErroAuto := .F.
-
-				MSExecAuto({ |x,y| MATA010(x,y)}, aVetor, nOperation)
-
-				if (lMsErroAuto)
-					DisarmTransaction()
-
-					oErrorJson["type"] := "E_EXECAUTO"
-					oErrorJson["message"] := "Erro ao deletar Equipamento/Produto no Protheus. Favor verificar os campos!"
-					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
-					aAdd(oServiceOrdersList:GetItem(nIndex):aErrors, oErrorJson)
-
-				endif
-
-			end transaction
-
-		next nIndex
-
-	end sequence
-
-
-	if !Empty(cError)
-
-		RestArea(aArea)
-
-		break
-
-	endif
-
-	RestArea(aArea)
-
-Return(oServiceOrdersList)
-
+ 
 Method OrderData(aData as array, cAliasTable as character) Class TServiceOrderService
 
 	Local aRequiredField := {} as array // Campos obrigatórios
@@ -654,15 +427,14 @@ Method OrderData(aData as array, cAliasTable as character) Class TServiceOrderSe
 
 	if !Empty(cError)
 
-		RestArea(aArea)
-
 		break
 
 	endif
 
 	RestArea(aAreaSX3)
 
-Return(aParsedData)
+Return(aParsedData) 
+
 
 Method ErrorExecAuto(aError as array) Class TServiceOrderService
 
@@ -676,143 +448,3 @@ Method ErrorExecAuto(aError as array) Class TServiceOrderService
 	next nIndexData
 
 Return(aErrorParsed)
-
-Method FindById(cServiceOrderId as character) Class TPlaceService
-
-	Local oModel := Nil as object
-	Local oList  := ArrayList():New() as object
-	Local oServiceOrderData := JsonObject():New() as object
-
-	begin sequence
-
-		if Empty(cServiceOrderId)
-
-			cError := EncodeUTF8("o campo ID é obrigatório para buscar Base Ordem de Serviço")
-
-			break
-
-		endif
-
-		AB6->( dbSetOrder(1))
-		If !AB6->(dbSeek(xFilial("AA3")+cServiceOrderId))
-
-			oServiceOrderData["page"] := 1
-			oServiceOrderData["per_page"] := 1
-			oServiceOrderData["total"] := 1
-			oServiceOrderData["last_page"] := 1
-			oServiceOrderData["data"] := oList
-
-			Return(oServiceOrderData)
-
-		EndIf
-
-		oModel := TServiceOrderModel():New()
-
-		oModel:cCode                 := AllTrim( (cAliasQuery)->AB6_NUMOS   )
-		oModel:cBranchCode           := AllTrim( (cAliasQuery)->AB6_FILIAL  )
-		oModel:cCustomerCode         := AllTrim( (cAliasQuery)->AB6_CODCLI  )
-		oModel:cCustomerStore        := AllTrim( (cAliasQuery)->AB6_LOJA    )
-		oModel:dCreatedAt            := AllTrim( (cAliasQuery)->AB6_EMISSA  )
-		oModel:cAttendant            := AllTrim( (cAliasQuery)->AB6_ATEND   )
-		oModel:cStatus               := AllTrim( (cAliasQuery)->AB6_STATUS  )
-		oModel:cPaymentTerms         := AllTrim( (cAliasQuery)->AB6_CONDPAG )
-		oModel:cObservation          := AllTrim( (cAliasQuery)->AB6_YOBS    )
-		oModel:cTechnicalCode        := AllTrim( (cAliasQuery)->AB6_YCODTE  )
-		oModel:cCustomerInvoiceCode  := AllTrim( (cAliasQuery)->AB6_YCLI    )
-		oModel:cCustomerInvoiceStore := AllTrim( (cAliasQuery)->AB6_YLJCLI  )
-		oModel:cContactPhone         := AllTrim( (cAliasQuery)->AB6_YLJCLI  )
-		oModel:cRequestedBy          := AllTrim( (cAliasQuery)->AB6_YSOLIC  )
-		oModel:cLocalRef             := AllTrim( (cAliasQuery)->AB6_YLOREF  )
-		oModel:cLocalRef             := AllTrim( (cAliasQuery)->AB6_YLOREF  )
-		oModel:cContactName          := AllTrim( (cAliasQuery)->AB6_YPROCU  )
-		oModel:cContractCode         := AllTrim( (cAliasQuery)->AB6_YCONTR  )
-
-		oList:Add( oModel )
-
-		oServiceOrderData["page"] := 1
-		oServiceOrderData["per_page"] := 1
-		oServiceOrderData["total"] := 1
-		oServiceOrderData["last_page"] := 1
-		oServiceOrderData["data"] := oList
-
-	end sequence
-
-	if !Empty(cError)
-
-		break
-
-	endif
-
-Return(oServiceOrderData)
-
-
-Method FindItemsById(cServiceOrderId as character) Class TPlaceService
-
-	Local oModel := Nil as object
-	Local oListItem := ArrayList():New() as object
-
-	Local cAliasQuery := GetNextAlias() as character
-	Local cQuery := "" as character
-
-	begin sequence
-
-		if Empty(cServiceOrderId)
-
-			cError := EncodeUTF8("o campo ID é obrigatório para buscar Itens da Ordem de Serviço")
-
-			break
-
-		endif
-
-		cQuery := " AB7_FILIAL, AB7_ITEM, AB7_NUMOS, AB7_TIPO, AB7_CODPROD, AB7_NUMSER, AB7_CODPRB, "
-		cQuery := "AB7_CODCLI, AB7_LOJA, AB7_EMISSA, AB7_YDTATE "
-
-		cQuery := "FROM "+RetSQLName("AB7")+" AB7 "
-		cQuery := "WHERE AB7.AB7_FILIAL = " +xFilial("AB7")
-		cQuery := "AND AB7.AB7_NUMOS = " +ValToSQL(cServiceOrderId)
-		cQuery := "AND AB7.D_E_L_E_T_ = '' "
-
-		If Select(cAliasQuery) > 0
-
-			( cAliasQuery )->( DbCloseArea() )
-
-		EndIf
-
-		TcQuery cQuery New Alias (cAliasQuery)
-
-		(cAliasQuery)->( DbGoTop() )
-
-		While (cAliasQuery)->(!EOF())
-
-			oModel := TServiceOrderItemModel():New()
-
-			oModel:cBranchCode     := AllTrim( (cAliasQuery)->AB7_FILIAL  )
-			oModel:cItem           := AllTrim( (cAliasQuery)->AB7_ITEM    )
-			oModel:cServiceOrderId := AllTrim( (cAliasQuery)->AB7_NUMOS   )
-			oModel:cType           := AllTrim( (cAliasQuery)->AB7_TIPO    )
-			oModel:cEquipamentCode := AllTrim( (cAliasQuery)->AB7_CODPROD )
-			oModel:cId             := AllTrim( (cAliasQuery)->AB7_NUMSE   )
-			oModel:cOccurrenceCode := AllTrim( (cAliasQuery)->AB7_CODPR   )
-			oModel:cCustomerCode   := AllTrim( (cAliasQuery)->AB7_CODCL   )
-			oModel:cCustomerStore  := AllTrim( (cAliasQuery)->AB7_LOJA    )
-			oModel:dCreatedAt      := AllTrim( (cAliasQuery)->AB7_EMISSA  )
-			oModel:dServiceAt      := AllTrim( (cAliasQuery)->AB7_YDTATE  )
-
-			oListItem:Add( oModel )
-
-		EndDo
-
-
-	end sequence
-
-
-	if !Empty(cError)
-
-		break
-
-	endif
-
-	(cAliasQuery)->( DbCloseArea() )
-
-Return(oListItem)
-
