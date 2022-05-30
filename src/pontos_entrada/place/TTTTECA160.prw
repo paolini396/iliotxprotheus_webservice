@@ -1,0 +1,9 @@
+#INCLUDE "TOTVS.CH"
+#INCLUDE "TOPCONN.CH"
+
+User Function BLADDBLANAKIOENFIO()
+
+Return(.T.)
+
+
+

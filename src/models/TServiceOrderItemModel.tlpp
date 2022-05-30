@@ -1,0 +1,59 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+/*/{Protheus.doc} TServiceOrderItemModel::New
+  Modelo de dados da classe
+  @type class
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+
+Class TServiceOrderItemModel
+//                                             CAMPO              VALOR
+	Public Data cBranchCode as character      // AB7_FILIAL
+	Public Data cItem as character            // AB7_ITEM
+	Public Data cServiceOrderId as character   //AB7_NUMOS
+	Public Data cType as character            // AB7_TIPO
+	Public Data cEquipamentCode as character   //AB7_CODPROD
+	Public Data cId as character               //AB7_NUMSER
+	Public Data cOccurrenceCode as character   //AB7_CODPRB
+	Public Data cCustomerCode as character    // AB7_CODCLI
+	Public Data cCustomerStore as character   // AB7_LOJA
+	Public Data dCreatedAt as date            // AB7_EMISSA
+	Public Data dServiceAt as date            // AB7_YDTATE
+	Public Data dInstallationAt as date      
+	Public Data dWarrantyAt as date   
+	Public Data cSerialNumber as character   
+	Public Data aErrors as array
+
+	Public Method New() Constructor
+
+EndClass
+
+/*/{Protheus.doc} TServiceOrderItemModel::New
+  Método construtor da classe
+  @type method
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+Method New() Class TServiceOrderItemModel
+
+	::cBranchCode := ""
+	::cItem := ""
+	::cServiceOrderId := ""
+	::cType := ""
+	::cEquipamentCode := ""
+	::cId := ""
+	::cOccurrenceCode := ""
+	::cCustomerCode := ""
+	::cCustomerStore := ""
+	::dCreatedAt := SToD("")
+	::dServiceAt := SToD("")
+	::dInstallationAt := SToD("")
+	::dWarrantyAt := SToD("")
+	::cSerialNumber := ""
+	::aErrors := {}
+
+Return

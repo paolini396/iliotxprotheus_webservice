@@ -1,0 +1,578 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+Class TProductService
+
+	Public Method New() Constructor
+	Public Method List() // Listar Produtos
+	Public Method Store() // Cria Produtos no Protheus
+	Public Method Update() //Alterar Produtos no Protheus
+	Public Method Show() //Buscar Produtos no Protheus
+	Public Method Destroy() //Deletar e Alterar Produtos no Protheus
+	Public Method ValidadeData() // Valida Dados para realizar o cadastro
+	Private Method OrderData() // Ordernar dados para ExecAuto
+	Private Method ErrorExecAuto() // Tratar erro de execAuto
+	Public Method FindByCpfCnpj() // Buscar Produtos por CPF ou CNPJ
+	Public Method FindById() // Buscar Produtos por ID (code)
+
+EndClass
+
+Method New() Class TProductService
+
+Return
+
+Method List(cSearch as character, nPage as numeric, nPerPage as numeric, lAllPage as logical) Class TProductService
+
+	Local cAliasQuery := GetNextAlias() as character
+	Local cQuery := "" as character
+	Local cWhere := "WHERE (1=1) " as character
+	Local oModel := Nil as object
+
+	Local nStartPage := 1 as numeric
+	Local nCount := 0 as numeric
+	Local nDataSize := 0 as numeric
+	Local nLastPage := 1 as numeric
+
+	Local oList := ArrayList():New() as object
+	Local oProductData := JsonObject():New() as object
+
+	Default nRecord := 0
+
+	begin sequence
+
+		if !Empty(cSearch)
+
+			cWhere += "AND (SB1.B1_COD LIKE '%" + AllTrim(cSearch) + "%' OR "
+			cWhere += "SB1.B1_DESC LIKE '%" + AllTrim(cSearch) + "%' ) "
+
+		endif
+
+		cQuery := "SELECT SB1.B1_COD, SB1.B1_DESC, SB1.B1_TIPO, SB1.B1_UM, B1_YMODELO, B1_YREF  "
+		cQuery += "FROM "+RetSQLName("SB1")+" SB1 "
+		cQuery += cWhere
+		cQuery += "AND D_E_L_E_T_ = '' "
+
+		If Select(cAliasQuery) > 0
+
+			( cAliasQuery )->( DbCloseArea() )
+
+		EndIf
+
+		TcQuery cQuery New Alias (cAliasQuery)
+
+		if ( cAliasQuery )->( !Eof() )
+
+			COUNT TO nRecord
+
+			if lAllPage
+				nPage := 1
+				nPerPage := nRecord
+			endif
+
+			if nPage > 1
+
+				nStartPage := ( ( nPage - 1 ) * nPerPage ) + 1
+				nDataSize := nRecord - nStartPage + 1
+
+			else
+
+				nDataSize := nRecord
+
+			endif
+
+			nLastPage := if(NoRound(nRecord / nPerPage, 2) >= 1.01, NoRound(nRecord / nPerPage, 0) + 1, NoRound(nRecord / nPerPage, 0) ) // arrendodamento
+
+			(cAliasQuery)->(DbGoTop())
+
+		endif
+
+
+		While (cAliasQuery)->(!EOF())
+
+			nCount++
+
+			if nCount >= nStartPage
+
+				oModel := TProductModel():New()
+
+				oModel:cCode := AllTrim( ( cAliasQuery )->B1_COD )
+				oModel:cDescription := AllTrim( EncodeUTF8( ( cAliasQuery )->B1_DESC ) )
+				oModel:cType := AllTrim( ( cAliasQuery )->B1_TIPO )
+				oModel:cUnitMeasure := AllTrim( ( cAliasQuery )->B1_UM )
+				oModel:cReference := AllTrim( ( cAliasQuery )->B1_YREF )
+				oModel:cModel := AllTrim( ( cAliasQuery )->B1_YMODELO )
+
+				oList:Add( oModel )
+
+				if !lAllPage .and. oList:getCount() >= nPerPage
+					exit
+				endif
+
+			endif
+
+			(cAliasQuery)->(DBSkip())
+
+		EndDo
+
+		oProductData["page"] := nPage
+		oProductData["per_page"] := nPerPage
+		oProductData["total"] := nRecord
+		oProductData["last_page"] := nLastPage
+		oProductData["data"] := oList
+
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oProductData)
+
+Method Store(oProductsList as object) Class TProductService
+
+	Local aArea := GetArea() as array
+	local nIndex := 0 as numeric
+	Local nOperation := 3 as numeric // INCLUSÃO
+	Local oErrorJson := Nil as object
+
+	Private aVetor := {}
+	Private INCLUI := .T.
+	Private lMsErroAuto := .T.
+	Private lMsHelpAuto := .T.
+	Private lAutoErrNoFile := .T.
+
+	begin sequence
+
+		for nIndex := 1 to oProductsList:GetCount()
+
+			oErrorJson := JsonObject():New()
+
+			aVetor := {}
+			aAdd(aVetor, {"B1_FILIAL" , xFilial("SB1"), Nil})
+			aAdd(aVetor, {"B1_DESC" , Upper(AllTrim(oProductsList:GetItem(nIndex):cDescription)), Nil})
+			aAdd(aVetor, {"B1_TIPO" , Upper(AllTrim(oProductsList:GetItem(nIndex):cType)), Nil})
+			aAdd(aVetor, {"B1_UM" , Upper(AllTrim(oProductsList:GetItem(nIndex):cUnitMeasure)), Nil})
+			aAdd(aVetor, {"B1_LOCPAD" , Upper(AllTrim(oProductsList:GetItem(nIndex):cStockWarehouse)), Nil})
+			aAdd(aVetor, {"B1_GRUPO" , Upper(AllTrim(oProductsList:GetItem(nIndex):cStockGroup)), Nil})
+			aAdd(aVetor, {"B1_PICM" , oProductsList:GetItem(nIndex):nPercentageIcms, Nil})
+			aAdd(aVetor, {"B1_IPI" , oProductsList:GetItem(nIndex):nPercentageIpi, Nil})
+			aAdd(aVetor, {"B1_POSIPI" , Upper(AllTrim(oProductsList:GetItem(nIndex):cNcm)), Nil})
+			aAdd(aVetor, {"B1_TIPCONV" , Upper(AllTrim(oProductsList:GetItem(nIndex):cConversionType)), Nil})
+			aAdd(aVetor, {"B1_UREV" , oProductsList:GetItem(nIndex):dRevisionDate, Nil})
+			aAdd(aVetor, {"B1_DATREF" ,oProductsList:GetItem(nIndex):dCostRefDate, Nil})
+			aAdd(aVetor, {"B1_YREF" , Upper(AllTrim(oProductsList:GetItem(nIndex):cReference)), Nil})
+			aAdd(aVetor, {"B1_YMODELO" , Upper(AllTrim(oProductsList:GetItem(nIndex):cModel)), Nil})
+			aAdd(aVetor, {"B1_CONTA" , "11040100000001", Nil})
+			aAdd(aVetor, {"B1_YESSENC" , iif(oProductsList:GetItem(nIndex):lIsEssential, "1","2"), Nil})
+			aAdd(aVetor, {"B1_ORIGEM" , AllTrim(oProductsList:GetItem(nIndex):cOrigin), Nil})
+
+			aVetor := aClone(::OrderData(aVetor))
+
+			begin Transaction
+
+				SetFunName("MATA010")
+
+				lMsErroAuto := .F.
+
+				MSExecAuto({ |x,y| MATA010(x,y) }, aVetor, nOperation)
+
+				if (lMsErroAuto)
+					RollBackSx8()
+
+					DisarmTransaction()
+
+					oErrorJson["type"] := "E_EXECAUTO"
+					oErrorJson["message"] := "Erro ao cadastrar Equipamento/Produto no Protheus. Favor verificar os campos!"
+					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
+					aAdd(oProductsList:GetItem(nIndex):aErrors, oErrorJson)
+
+				else
+
+					ConfirmSX8()
+
+					oProductsList:GetItem(nIndex):cCode := U_GetCodB1()
+
+				endif
+
+			end transaction
+
+		next nIndex
+
+	end sequence
+
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return(oProductsList)
+
+Method Update(oProductsList as object) Class TProductService
+
+	Local aArea := GetArea() as array
+	local nIndex := 0 as numeric
+	Local nOperation := 4 as numeric // ALTERAÇÃO
+	Local oErrorJson := Nil as object
+	Local oProduct := Nil as object
+
+	Private aVetor := {}
+	Private INCLUI := .F.
+	Private lMsErroAuto := .T.
+	Private lMsHelpAuto := .T.
+	Private lAutoErrNoFile := .T.
+
+	begin sequence
+
+		for nIndex := 1 to oProductsList:getCount()
+
+			oErrorJson := JsonObject():New()
+
+			oProduct := ::FindById(oProductsList:GetItem(nIndex):cCode)
+
+			if (!oProduct["data"]:GetCount() > 0)
+
+				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
+				oErrorJson["message"] := EncodeUTF8("Equipamento/Produto com o id " + oProductsList:GetItem(nIndex):cCode + " não existe no Protheus.")
+				aAdd(oProductsList:GetItem(nIndex):aErrors, oErrorJson)
+
+				loop
+
+			endif
+
+			aVetor := {}
+			aAdd(aVetor, {"B1_FILIAL" , AllTrim(oProduct["data"]:GetItem(1):cBranchCode), Nil})
+			aAdd(aVetor, {"B1_COD" , Upper(AllTrim(oProduct["data"]:GetItem(1):cCode)), Nil})
+			aAdd(aVetor, {"B1_DESC" , Upper(AllTrim(oProductsList:GetItem(nIndex):cDescription)), Nil})
+			aAdd(aVetor, {"B1_TIPO" , Upper(AllTrim(oProductsList:GetItem(nIndex):cType)), Nil})
+			aAdd(aVetor, {"B1_UM" , Upper(AllTrim(oProductsList:GetItem(nIndex):cUnitMeasure)), Nil})
+			aAdd(aVetor, {"B1_LOCPAD" , Upper(AllTrim(oProductsList:GetItem(nIndex):cStockWarehouse)), Nil})
+			aAdd(aVetor, {"B1_GRUPO" , Upper(AllTrim(oProductsList:GetItem(nIndex):cStockGroup)), Nil})
+			aAdd(aVetor, {"B1_PICM" , oProductsList:GetItem(nIndex):nPercentageIcms, Nil})
+			aAdd(aVetor, {"B1_IPI" , oProductsList:GetItem(nIndex):nPercentageIpi, Nil})
+			aAdd(aVetor, {"B1_POSIPI" , Upper(AllTrim(oProductsList:GetItem(nIndex):cNcm)), Nil})
+			aAdd(aVetor, {"B1_TIPCONV" , Upper(AllTrim(oProductsList:GetItem(nIndex):cConversionType)), Nil})
+			aAdd(aVetor, {"B1_UREV" , oProductsList:GetItem(nIndex):dRevisionDate, Nil})
+			aAdd(aVetor, {"B1_DATREF" ,oProductsList:GetItem(nIndex):dCostRefDate, Nil})
+			aAdd(aVetor, {"B1_YREF" , Upper(AllTrim(oProductsList:GetItem(nIndex):cReference)), Nil})
+			aAdd(aVetor, {"B1_YMODELO" , Upper(AllTrim(oProductsList:GetItem(nIndex):cModel)), Nil})
+			aAdd(aVetor, {"B1_CONTA" , "11040100000001", Nil})
+			aAdd(aVetor, {"B1_YESSENC" , iif(oProductsList:GetItem(nIndex):lIsEssential, "1","2"), Nil})
+			aAdd(aVetor, {"B1_ORIGEM" , AllTrim(oProductsList:GetItem(nIndex):cOrigin), Nil})
+
+			aVetor := aClone(::OrderData(aVetor))
+
+			begin Transaction
+
+				SetFunName("MATA010")
+
+				lMsErroAuto := .F.
+
+				MSExecAuto({ |x,y| MATA010(x,y)}, aVetor, nOperation)
+
+				if (lMsErroAuto)
+
+					DisarmTransaction()
+
+					oErrorJson["type"] := "E_EXECAUTO"
+					oErrorJson["message"] := "Erro ao atualizar Equipamento/Produto no Protheus. Favor verificar os campos!"
+					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
+					aAdd(oProductsList:GetItem(nIndex):aErrors, oErrorJson)
+
+				endif
+
+			end transaction
+
+		next nIndex
+
+	end sequence
+
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return(oProductsList)
+
+Method Show(cProductId as character) Class TProductService
+
+	Local oErrorJson := Nil as object
+	Local oProduct := JsonObject():New() as object
+
+	begin sequence
+
+		oProduct := ::FindById(cProductId)
+
+		oErrorJson := JsonObject():New()
+
+		if (!oProduct["data"]:GetCount() > 0)
+
+			cError := EncodeUTF8("Euipamento/Produto com o id " + cProductId + " não existe no Protheus.")
+
+			break
+
+		endif
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oProduct)
+
+Method Destroy(oProductsList as object) Class TProductService
+
+	Local aArea := GetArea() as character
+	local nIndex := 0 as numeric
+	Local nOperation := 5 as numeric // EXCLUSÃO
+	Local oErrorJson := Nil as object
+	Local oProduct := Nil as object
+
+	Private aVetor := {}
+	Private INCLUI := .F.
+	Private lMsErroAuto := .T.
+	Private lMsHelpAuto := .T.
+	Private lAutoErrNoFile := .T.
+
+	begin sequence
+
+		for nIndex := 1 to oProductsList:getCount()
+
+			oErrorJson := JsonObject():New()
+
+			oProduct := ::FindById(oProductsList:GetItem(nIndex):cCode)
+
+			if (!oProduct["data"]:GetCount() > 0)
+
+				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
+				oErrorJson["message"] := EncodeUTF8("Equipamento/Produto com o id " + oProductsList:GetItem(nIndex):cCode + " não existe no Protheus.")
+				aAdd(oProductsList:GetItem(nIndex):aErrors, oErrorJson)
+
+				loop
+			endif
+
+			aVetor := {}
+			aAdd(aVetor, {"B1_FILIAL" , xFilial("SB1"), Nil})
+			aAdd(aVetor, {"B1_COD" , Upper(AllTrim(oProduct["data"]:GetItem(1):cCode)), Nil})
+			aAdd(aVetor, {"B1_DESC" , Upper(AllTrim(oProduct["data"]:GetItem(1):cDescription)), Nil})
+			aAdd(aVetor, {"B1_TIPO" , Upper(AllTrim(oProduct["data"]:GetItem(1):cType)), Nil})
+			aAdd(aVetor, {"B1_UM" , Upper(AllTrim(oProduct["data"]:GetItem(1):cUnitMeasure)), Nil})
+			aAdd(aVetor, {"B1_LOCPAD" , Upper(AllTrim(oProduct["data"]:GetItem(1):cStockWarehouse)), Nil})
+			aAdd(aVetor, {"B1_GRUPO" , Upper(AllTrim(oProduct["data"]:GetItem(1):cStockGroup)), Nil})
+			aAdd(aVetor, {"B1_PICM" , oProduct["data"]:GetItem(1):nPercentageIcms, Nil})
+			aAdd(aVetor, {"B1_IPI" , oProduct["data"]:GetItem(1):nPercentageIpi, Nil})
+			aAdd(aVetor, {"B1_POSIPI" , Upper(AllTrim(oProduct["data"]:GetItem(1):cNcm)), Nil})
+			aAdd(aVetor, {"B1_TIPCONV" , Upper(AllTrim(oProduct["data"]:GetItem(1):cConversionType)), Nil})
+			aAdd(aVetor, {"B1_UREV" , SToD(oProduct["data"]:GetItem(1):dRevisionDate), Nil})
+			aAdd(aVetor, {"B1_DATREF" ,SToD(oProduct["data"]:GetItem(1):dCostRefDate), Nil})
+			aAdd(aVetor, {"B1_YREF" , Upper(AllTrim(oProduct["data"]:GetItem(1):cReference)), Nil})
+			aAdd(aVetor, {"B1_YMODELO" , Upper(AllTrim(oProduct["data"]:GetItem(1):cModel)), Nil})
+			aAdd(aVetor, {"B1_CONTA" , "11040100000001", Nil})
+
+			aVetor := aClone(::OrderData(aVetor))
+
+			begin Transaction
+
+				SetFunName("MATA010")
+
+				lMsErroAuto := .F.
+
+				MSExecAuto({ |x,y| MATA010(x,y)}, aVetor, nOperation)
+
+				if (lMsErroAuto)
+					DisarmTransaction()
+
+					oErrorJson["type"] := "E_EXECAUTO"
+					oErrorJson["message"] := "Erro ao deletar Equipamento/Produto no Protheus. Favor verificar os campos!"
+					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
+					aAdd(oProductsList:GetItem(nIndex):aErrors, oErrorJson)
+
+				endif
+
+			end transaction
+
+		next nIndex
+
+	end sequence
+
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return(oProductsList)
+
+Method OrderData(aData as array) Class TProductService
+
+	Local aRequiredField := {} as array // Campos obrigatórios
+	Local nIndexData := 0 as numeric // index de Data
+	Local nIndexReqField := 0 as numeric // index de aRequiredField
+	Local aParsedData := {} as array // Novo array de dados
+	Local aAreaSX3 := SX3->(GetArea()) as array
+
+	begin sequence
+
+		DbSelectArea("SX3")
+		SX3->(DbSetOrder(1))
+		SX3->(DbGoTop())
+
+		if (SX3->(DbSeek("SB1")))
+
+			while !SX3->(EOF()) .and. SX3->X3_ARQUIVO == "SB1"
+
+				if (Subs(Bin2str(SX3->X3_OBRIGAT), 1, 1) == "x")
+
+					aAdd(aRequiredField, SX3->X3_CAMPO)
+
+				endif
+
+				for nIndexData := 1 to Len(aData)
+
+					if (AllTrim(SX3->X3_CAMPO) == AllTrim(aData[nIndexData][1]))
+
+						aAdd(aParsedData, aData[nIndexData])
+
+						if (Subs(Bin2Str(SX3->X3_OBRIGAT), 1, 1) == "x" .and. Empty(aData[nIndexData][2]))
+
+							ConOut("TProductService::OrderData: Campo" + SX3->X3_CAMPO + "é obrigatório e seu conteudo está vazio!")
+
+						endif
+
+					endif
+
+				next nIndexData
+
+				SX3->(DbSkip())
+
+			endDo
+		endif
+
+		for nIndexReqField := 1 to Len(aRequiredField)
+
+			for nIndexData := 1 to Len(aData)
+
+				if (!AllTrim(aData[nIndexData][1]) == AllTrim(aRequiredField[nIndexReqField]))
+
+					ConOut("TProductService::OrderData: Campo " + AllTrim(aRequiredField[nIndexReqField]) + " é obrigatório e não está no ExecAuto!")
+
+				endif
+
+			next nIndexData
+
+		next nIndexReqField
+
+	end sequence
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aAreaSX3)
+
+Return(aParsedData)
+
+Method ErrorExecAuto(aError as array) Class TProductService
+
+	Local aErrorParsed := {} as array
+	Local nIndexError := 0 as numeric
+
+	for nIndexError := 1 to Len(aError)
+
+		aAdd(aErrorParsed, EncodeUTF8(aError[nIndexError]))
+
+	next nIndexData
+
+Return(aErrorParsed)
+
+Method FindById(cProductId as character) Class TProductService
+
+	Local oModel := Nil as object
+	Local oList := ArrayList():New() as object
+	Local oProductData := JsonObject():New() as object
+
+	begin sequence
+
+		if Empty(cProductId)
+
+			cError := EncodeUTF8("o campo ID é obrigatório para buscar o Produto")
+
+			break
+
+		endif
+
+
+		SB1->( dbSetOrder(1))
+		If !SB1->(dbSeek(xFilial("SB1")+cProductId))
+
+			oProductData["page"] := 1
+			oProductData["per_page"] := 1
+			oProductData["total"] := 1
+			oProductData["last_page"] := 1
+			oProductData["data"] := oList
+
+			Return(oProductData)
+
+		EndIf
+
+		oModel := TProductModel():New()
+
+		oModel:cBranchCode := AllTrim(SB1->B1_FILIAL )
+		oModel:cCode := AllTrim(SB1->B1_COD )
+		oModel:cDescription := AllTrim(SB1->B1_DESC )
+		oModel:cType := AllTrim(SB1->B1_TIPO )
+		oModel:cUnitMeasure := AllTrim(SB1->B1_UM )
+		oModel:cStockWarehouse := AllTrim(SB1->B1_LOCPAD )
+		oModel:cStockGroup := AllTrim(SB1->B1_GRUPO )
+		oModel:nPercentageIcms :=SB1->B1_PICM
+		oModel:nPercentageIpi :=SB1->B1_IPI
+		oModel:cNcm := AllTrim(SB1->B1_POSIPI )
+		oModel:cConversionType := AllTrim(SB1->B1_TIPCONV )
+		oModel:dRevisionDate := AllTrim(SB1->B1_UREV )
+		oModel:dCostRefDate := AllTrim(SB1->B1_DATREF )
+		oModel:cReference := AllTrim(SB1->B1_DATREF )
+		oModel:cModel := AllTrim(SB1->B1_YMODELO )
+
+		oList:Add( oModel )
+
+		oProductData["page"] := 1
+		oProductData["per_page"] := 1
+		oProductData["total"] := 1
+		oProductData["last_page"] := 1
+		oProductData["data"] := oList
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oProductData)

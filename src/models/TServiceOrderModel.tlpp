@@ -1,0 +1,70 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+/*/{Protheus.doc} TServiceOrderModel::New
+  Modelo de dados da classe
+  @type class
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+
+Class TServiceOrderModel
+//                                             CAMPO              VALOR
+	Public Data cBranchCode as character           // AB6_FILIAL
+	Public Data cCode as character                 // AB6_NUMOS
+	Public Data cCustomerCode as character         // AB6_CODCLI
+	Public Data cCustomerStore as character        // AB6_LOJA
+	Public Data dCreatedAt as date                 // AB6_EMISSA
+	Public Data cAttendant as character            // AB6_ATEND
+	Public Data cStatus as character               // AB6_STATUS
+	Public Data cPaymentTerms as character         // AB6_CONDPAG
+	Public Data cObservation as character          // AB6_YOBS
+	Public Data cTechnicalCode as character        // AB6_YCODTE
+	Public Data cCustomerInvoiceCode as character   //AB6_YCLI
+	Public Data cCustomerInvoiceStore as character // AB6_YLJCLI
+	Public Data cContactPhone as character         // AB6_YTELCO
+	Public Data cRequestedBy as character          // AB6_YSOLIC
+	Public Data cLocalRef as character             // AB6_YLOREF 
+	Public Data cContactName as character          // AB6_YPROCU
+	Public Data cContractCode as character         // AB6_YCONTR
+	Public Data cPlaceId as character  
+	Public Data aItems as array
+	Public Data aErrors as array              
+
+	Public Method New() Constructor
+
+EndClass
+
+/*/{Protheus.doc} TServiceOrderModel::New
+  Método construtor da classe
+  @type method
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+Method New() Class TServiceOrderModel
+
+	::cBranchCode := ""
+	::cCode := ""
+	::cCustomerCode := ""
+	::cCustomerStore := ""
+	::dCreatedAt := SToD("")
+	::cAttendant := ""
+	::cStatus := ""
+	::cPaymentTerms := ""
+	::cObservation := ""
+	::cTechnicalCode := ""
+	::cCustomerInvoiceCode := ""
+	::cCustomerInvoiceStore := ""
+	::cContactPhone := ""
+	::cRequestedBy := ""
+	::cLocalRef := ""
+	::cContactName := ""
+	::cContractCode := ""
+	::cPlaceId := ""
+	::aItems := {}
+	::aErrors := {}
+
+
+Return

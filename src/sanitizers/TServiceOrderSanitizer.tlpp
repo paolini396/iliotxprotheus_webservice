@@ -1,0 +1,98 @@
+#INCLUDE 'TOTVS.CH'
+
+Class TServiceOrderSanitizer
+
+	Public Method New() Constructor
+	Public Method ToCreateOrUpdate()
+	Public Method ToUpdate()
+	Public Method ToDestroy()
+
+EndClass
+
+Method New() Class TServiceOrderSanitizer
+
+Return
+
+Method ToCreateOrUpdate(aServiceOrders as array) Class TServiceOrderSanitizer
+
+	Local oModel := Nil as Object
+	Local oModelItem := Nil as Object
+	Local oList := ArrayList():New() as Object
+	Local oListItem := Nil as Object
+	Local aServiceOrderItems := {} as array
+
+	Local nIndex := 0 as numeric
+	Local nIndexItem := 0 as numeric
+
+	for nIndex := 1 to Len(aServiceOrders)
+
+		oListItem := ArrayList():New()
+		oModel := TServiceOrderModel():New()
+
+		aServiceOrderItems := aServiceOrders[nIndex]["items"]
+
+		for nIndexItem := 1 to Len(aServiceOrderItems)
+
+			oModelItem := TServiceOrderItemModel():New()
+
+			oModelItem:cItem := iif( !Empty(aServiceOrderItems[nIndexItem]["item"]) , aServiceOrderItems[nIndexItem]["item"] , "")
+			oModelItem:cServiceOrderId := iif( !Empty(aServiceOrderItems[nIndexItem]["service_order_id"]) , aServiceOrderItems[nIndexItem]["item"] , "")
+			oModelItem:cType := iif( !Empty(aServiceOrderItems[nIndexItem]["type"]) , aServiceOrderItems[nIndexItem]["type"] , "")
+			oModelItem:cEquipamentCode := iif( !Empty(aServiceOrderItems[nIndexItem]["equipment_id"]) , aServiceOrderItems[nIndexItem]["equipment_id"] , "")
+			oModelItem:cId := iif( !Empty(aServiceOrderItems[nIndexItem]["id"]) , aServiceOrderItems[nIndexItem]["id"] , "")
+			oModelItem:cOccurrenceCode := iif( !Empty(aServiceOrderItems[nIndexItem]["ocorrence_id"]) , aServiceOrderItems[nIndexItem]["ocorrence_id"] , "")
+			oModelItem:cCustomerCode := iif( !Empty(aServiceOrders[nIndex]["customer_id"]) , aServiceOrders[nIndex]["customer_id"] , "")
+			oModelItem:cCustomerStore := iif( !Empty(aServiceOrders[nIndex]["customer_store"]) , aServiceOrders[nIndex]["customer_store"] , "")
+			oModelItem:dServiceAt := iif( !Empty(aServiceOrderItems[nIndexItem]["service_at"]) , aServiceOrderItems[nIndexItem]["service_at"] , "")
+			oModelItem:dInstallationAt := iif( !Empty(aServiceOrderItems[nIndexItem]["installation_at"]) , aServiceOrderItems[nIndexItem]["installation_at"] , "")
+			oModelItem:dWarrantyAt := iif( !Empty(aServiceOrderItems[nIndexItem]["warranty_at"]) , aServiceOrderItems[nIndexItem]["warranty_at"] , "")
+			oModelItem:cSerialNumber := iif( !Empty(aServiceOrderItems[nIndexItem]["serial_number"]) , aServiceOrderItems[nIndexItem]["serial_number"] , "")
+
+			oListItem:Add( oModelItem )
+
+		next nIndexItem
+
+		oModel:cCode                 := iif( !Empty(aServiceOrders[nIndex]["id"])                     , aServiceOrders[nIndex]["id"]                     , "")
+		oModel:cCustomerCode         := iif( !Empty(aServiceOrders[nIndex]["customer_id"])            , aServiceOrders[nIndex]["customer_id"]            , "")
+		oModel:cCustomerStore        := iif( !Empty(aServiceOrders[nIndex]["customer_store"])         , aServiceOrders[nIndex]["customer_store"]         , "")
+		oModel:cAttendant            := iif( !Empty(aServiceOrders[nIndex]["attendat"])               , aServiceOrders[nIndex]["attendat"]               , "")
+		oModel:cStatus               := iif( !Empty(aServiceOrders[nIndex]["status"])                 , aServiceOrders[nIndex]["status"]                 , "")
+		oModel:cPaymentTerms         := iif( !Empty(aServiceOrders[nIndex]["payment_terms"])          , aServiceOrders[nIndex]["payment_terms"]          , "")
+		oModel:cObservation          := iif( !Empty(aServiceOrders[nIndex]["observation"])            , aServiceOrders[nIndex]["observation"]            , "")
+		oModel:cTechnicalCode        := iif( !Empty(aServiceOrders[nIndex]["technical_id"])           , aServiceOrders[nIndex]["technical_id"]           , "")
+		oModel:cCustomerInvoiceCode  := iif( !Empty(aServiceOrders[nIndex]["customer_invoice_id"])    , aServiceOrders[nIndex]["customer_invoice"]       , "")
+		oModel:cCustomerInvoiceStore := iif( !Empty(aServiceOrders[nIndex]["customer_invoice_store"]) , aServiceOrders[nIndex]["customer_invoice_store"] , "")
+		oModel:cContactPhone         := iif( !Empty(aServiceOrders[nIndex]["contact_phone"])          , aServiceOrders[nIndex]["contact_phone"]          , "")
+		oModel:cRequestedBy          := iif( !Empty(aServiceOrders[nIndex]["request_by"])             , aServiceOrders[nIndex]["request_by"]             , "")
+		oModel:cLocalRef             := iif( !Empty(aServiceOrders[nIndex]["local_ref"])              , aServiceOrders[nIndex]["local_ref"]              , "")
+		oModel:cContactName          := iif( !Empty(aServiceOrders[nIndex]["contact_name"])           , aServiceOrders[nIndex]["contact_name"]           , "")
+		oModel:cContractCode         := iif( !Empty(aServiceOrders[nIndex]["contract_id"])            , aServiceOrders[nIndex]["contract_id"]            , "")
+		oModel:cPlaceId              := iif( !Empty(aServiceOrders[nIndex]["place_id"])               , aServiceOrders[nIndex]["place_id"]               , "")
+		oModel:aItems                := oListItem
+		oModel:aErrors               := {}
+
+		oList:Add( oModel )
+
+	next nIndex
+
+Return(oList)
+
+
+Method ToDestroy(aServiceOrders as array) Class TServiceOrderSanitizer
+
+	Local oModel := Nil as Object
+	Local oList := ArrayList():New() as Object
+
+	Local nIndex := 0 as numeric
+
+	for nIndex := 1 to Len(aServiceOrders)
+
+		oModel := TServiceOrderModel():New()
+
+		oModel:cCode := iif( !Empty(aServiceOrders[nIndex]["id"]) , aServiceOrders[nIndex]["id"] , "")
+
+		oList:Add( oModel )
+
+	next nIndex
+
+Return(oList)

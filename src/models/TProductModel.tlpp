@@ -1,0 +1,66 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+/*/{Protheus.doc} TProductModel::New
+  Modelo de dados da classe
+  @type class
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+
+Class TProductModel
+//                                             CAMPO              VALOR
+	Public Data cBranchCode as character       // B1_FILIAL
+	Public Data cCode as character             // B1_COD
+	Public Data cDescription as character      // B1_DESC
+	Public Data cType as character             // B1_TIPO
+	Public Data cUnitMeasure as character      // B1_UM
+	Public Data cStockWarehouse as character   // B1_LOCPAD
+	Public Data cStockGroup as character       // B1_GRUPO
+	Public Data nPercentageIcms as numeric     // B1_PICM
+	Public Data nPercentageIpi as numeric      // B1_IPI
+	Public Data cNcm as character              // B1_POSIPI
+	Public Data cConversionType as character   // B1_TIPCONV
+	Public Data dRevisionDate as date          // B1_UREV
+	Public Data dCostRefDate as date           // B1_DATREF
+	Public Data cReference as character        // B1_YREF
+	Public Data cModel as character            // B1_YMODELO
+	Public Data lIsEssential as logical        // B1_YESSENC
+	Public Data cOrigin as character           // B1_ORIGEM
+	Public Data aErrors as array              
+
+	Public Method New() Constructor
+
+EndClass
+
+/*/{Protheus.doc} TProductModel::New
+  Método construtor da classe
+  @type method
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+Method New() Class TProductModel
+
+	::cBranchCode := ""
+	::cCode := ""
+	::cDescription := ""
+	::cType := ""
+	::cUnitMeasure := ""
+	::cStockWarehouse := ""
+	::cStockGroup := ""
+	::nPercentageIcms := 0
+	::nPercentageIpi := 0
+	::cNcm := ""
+	::cConversionType := ""
+	::dRevisionDate := SToD("")
+	::dCostRefDate := SToD("")
+	::cReference := ""
+	::cModel := ""
+	::lIsEssential := .F.
+	::cOrigin := ""
+	::aErrors := {}
+
+
+Return

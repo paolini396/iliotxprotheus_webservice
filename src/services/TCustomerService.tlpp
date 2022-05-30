@@ -1,0 +1,847 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+Class TCustomerService
+
+	Public Method New() Constructor
+	Public Method List() // Listar Clientes
+	Public Method Store() // Cria Clientes no Protheus
+	Public Method Update() //Alterar Clientes no Protheus
+	Public Method Show() //Buscar Clientes no Protheus
+	Public Method Destroy() //Deletar e Alterar Clientes no Protheus
+	Public Method ValidadeData() // Valida Dados para realizar o cadastro
+	Private Method OrderData() // Ordernar dados para ExecAuto
+	Private Method ErrorExecAuto() // Tratar erro de execAuto
+	Public Method FindByCpfCnpj() // Buscar cliente por CPF ou CNPJ
+	Public Method FindById() // Buscar cliente por ID (code)
+	Public Method FindByCountryId()
+
+EndClass
+
+Method New() Class TCustomerService
+
+Return
+
+Method List(cSearch as character, nPage as numeric, nPerPage as numeric, lAllPage as logical) Class TCustomerService
+
+	Local cAliasQuery := GetNextAlias() as character
+	Local cQuery := "" as character
+	Local cWhere := "WHERE (1=1) " as character
+	Local oModel := Nil as object
+
+	Local nStartPage := 1 as numeric
+	Local nCount := 0 as numeric
+	Local nDataSize := 0 as numeric
+	Local nLastPage := 1 as numeric
+
+	Local oList := ArrayList():New() as object
+	Local oCustomerData := JsonObject():New() as object
+
+	Default nRecord := 0
+
+	begin sequence
+
+		if !Empty(cSearch)
+
+			cWhere += "AND (SA1.A1_COD LIKE '%" + AllTrim(cSearch) + "%' OR "
+			cWhere += "SA1.A1_LOJA LIKE '%" + AllTrim(cSearch) + "%' OR "
+			cWhere += "SA1.A1_NOME LIKE '%" + Upper(AllTrim(cSearch)) + "%' ) "
+
+		endif
+
+		cQuery := "SELECT SA1.A1_COD, SA1.A1_LOJA, SA1.A1_NOME, SA1.A1_CGC "
+		cQuery += "FROM "+RetSQLName("SA1")+" SA1 "
+		cQuery += cWhere
+		cQuery += "AND D_E_L_E_T_ = '' "
+
+		If Select(cAliasQuery) > 0
+
+			( cAliasQuery )->( DbCloseArea() )
+
+		EndIf
+
+		TcQuery cQuery New Alias (cAliasQuery)
+
+		if ( cAliasQuery )->( !Eof() )
+
+			COUNT TO nRecord
+
+			if lAllPage
+				nPage := 1
+				nPerPage := nRecord
+			endif
+
+			if nPage > 1
+
+				nStartPage := ( ( nPage - 1 ) * nPerPage ) + 1
+				nDataSize := nRecord - nStartPage + 1
+
+			else
+
+				nDataSize := nRecord
+
+			endif
+
+			nLastPage := if(NoRound(nRecord / nPerPage, 2) >= 1.01, NoRound(nRecord / nPerPage, 0) + 1, NoRound(nRecord / nPerPage, 0) ) // arrendodamento
+
+			(cAliasQuery)->(DbGoTop())
+
+		endif
+
+
+		While (cAliasQuery)->(!EOF())
+
+			nCount++
+
+			if nCount >= nStartPage
+
+				oModel := TCustomerModel():New()
+
+				oModel:cCode := AllTrim( ( cAliasQuery )->A1_COD )
+				oModel:cStore := AllTrim( ( cAliasQuery )->A1_LOJA )
+				oModel:cFirstName := AllTrim( EncodeUTF8( ( cAliasQuery )->A1_NOME ) )
+				oModel:cCpfCnpj := AllTrim( ( cAliasQuery )->A1_CGC )
+
+				oList:Add( oModel )
+
+				if !lAllPage .and. oList:getCount() >= nPerPage
+					exit
+				endif
+
+			endif
+
+			(cAliasQuery)->(DBSkip())
+
+		EndDo
+
+		oCustomerData["page"] := nPage
+		oCustomerData["per_page"] := nPerPage
+		oCustomerData["total"] := nRecord
+		oCustomerData["last_page"] := nLastPage
+		oCustomerData["data"] := oList
+
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oCustomerData)
+
+Method Store(oCustomersList as object) Class TCustomerService
+
+	Local aArea := GetArea() as array
+	local nIndex := 0 as numeric
+	Local nOperation := 3 as numeric // INCLUSÃO
+	Local oErrorJson := Nil as object
+	Local oFindCustomer := Nil as object
+	Local oCountry := Nil as object
+
+	Private aVetor := {}
+	Private INCLUI := .T.
+	Private lMsErroAuto := .T.
+	Private lMsHelpAuto := .T.
+	Private lAutoErrNoFile := .T.
+
+	begin sequence
+
+		for nIndex := 1 to oCustomersList:GetCount()
+
+			oErrorJson := JsonObject():New()
+
+			oFindCustomer := ::FindByCpfCnpj(oCustomersList:GetItem(nIndex):cCpfCnpj)
+
+			if (oFindCustomer:GetCount() > 0)
+
+				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
+				oErrorJson["message"] := EncodeUTF8("Cliente com o CPF/CNPJ " + oCustomersList:GetItem(nIndex):cCpfCnpj + " já existe no Protheus.")
+				aAdd(oCustomersList:GetItem(nIndex):aErrors, oErrorJson)
+
+				loop
+
+			endIf
+
+			oCountry := ::FindByCountryId(oCustomersList:GetItem(nIndex):cCountryCode)
+
+			if !(oCountry["data"]:GetCount() > 0)
+
+				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
+				oErrorJson["message"] := EncodeUTF8("País com código " + oCustomersList:GetItem(nIndex):cCountryCode + " não existe no Protheus.")
+				aAdd(oCustomersList:GetItem(nIndex):aErrors, oErrorJson)
+
+				loop
+
+			endIf
+
+			aVetor := {}
+			aAdd(aVetor, {"A1_FILIAL" , xFilial("SA1"), Nil})
+			aAdd(aVetor, {"A1_NOME" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cFirstName)), Nil})
+			aAdd(aVetor, {"A1_PESSOA" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cPersonType)), Nil})
+			aAdd(aVetor, {"A1_CGC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cCpfCnpj)) , Nil})
+			aAdd(aVetor, {"A1_TIPO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cType)), Nil})
+			aAdd(aVetor, {"A1_NREDUZ" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cLastName)), Nil})
+			aAdd(aVetor, {"A1_END" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cAddress)), Nil})
+			aAdd(aVetor, {"A1_COMPLEM" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cComplement)), Nil})
+			aAdd(aVetor, {"A1_EST" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cState)), Nil})
+			aAdd(aVetor, {"A1_COD_MUN" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cCityId)), Nil})
+			aAdd(aVetor, {"A1_MUN" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cCity)), Nil})
+			aAdd(aVetor, {"A1_BAIRRO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cNeighborhood)), Nil})
+			aAdd(aVetor, {"A1_CEP" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cZipCode)), Nil})
+			aAdd(aVetor, {"A1_DDD" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cDDD)), Nil})
+			aAdd(aVetor, {"A1_TEL" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cPhone)), Nil})
+			aAdd(aVetor, {"A1_FAX" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cFax)), Nil})
+			aAdd(aVetor, {"A1_CONTATO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cContact)), Nil})
+			aAdd(aVetor, {"A1_INSCR" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cStateInscription)), Nil})
+			aAdd(aVetor, {"A1_EMAIL" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cEmail)), Nil})
+			aAdd(aVetor, {"A1_HPAGE" , "", Nil})
+			aAdd(aVetor, {"A1_ENDCOB" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingAddress)), Nil})
+			aAdd(aVetor, {"A1_ESTC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingState)), Nil})
+			aAdd(aVetor, {"A1_MUNC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingCity)), Nil})
+			aAdd(aVetor, {"A1_BAIRROC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingNeighborhood)), Nil})
+			aAdd(aVetor, {"A1_CEPC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingZipCode)), Nil})
+			aAdd(aVetor, {"A1_CONTRIB" , IIf(oCustomersList:GetItem(nIndex):lIsTaxpayer, "1","2"), Nil})
+			aAdd(aVetor, {"A1_FOMEZER" , IIf(oCustomersList:GetItem(nIndex):lIsZeroHunger, "1","2"), Nil})
+			aAdd(aVetor, {"A1_PAIS"    , AllTrim(oCustomersList:GetItem(nIndex):cCountryCode), Nil})
+			aAdd(aVetor, {"A1_CODPAIS" , AllTrim( oCountry["data"]:GetItem(1)["cCountryIdBacen"]), Nil})
+			aAdd(aVetor, {"A1_SATIV1" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cSegment)), Nil})
+			aAdd(aVetor, {"A1_LC" , oCustomersList:GetItem(nIndex):nCreditLimit, Nil})
+			aAdd(aVetor, {"A1_RISCO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cRiskLevel)), Nil})
+			aAdd(aVetor, {"A1_SUFRAMA" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cSuframaCode)), Nil})
+			aAdd(aVetor, {"A1_YDVSAO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cDivision)), Nil})
+
+			aVetor := aClone(::OrderData(aVetor))
+
+			begin Transaction
+
+				SetFunName("MATA030")
+
+				lMsErroAuto := .F.
+
+				MSExecAuto({ |x,y| MATA030(x,y) }, aVetor, nOperation)
+
+				if (lMsErroAuto)
+					RollBackSx8()
+
+					DisarmTransaction()
+
+					oErrorJson["type"] := "E_EXECAUTO"
+					oErrorJson["message"] := "Erro ao cadastrar Cliente no Protheus. Favor verificar os campos!"
+					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
+					aAdd(oCustomersList:GetItem(nIndex):aErrors, oErrorJson)
+
+				else
+
+					ConfirmSX8()
+
+					oCustomersList:GetItem(nIndex):cCode := U_GetMCodA1()
+					oCustomersList:GetItem(nIndex):cStore := U_GetMLojaA1()
+
+				endif
+
+			end transaction
+
+		next nIndex
+
+	end sequence
+
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return oCustomersList
+
+Method Update(oCustomersList as object) Class TCustomerService
+
+	Local aArea := GetArea() as array
+	local nIndex := 0 as numeric
+	Local nOperation := 4 as numeric // ALTERAÇÃO
+	Local oErrorJson := Nil as object
+	Local oCustomer := Nil as object
+	Local oCountry := Nil as object
+
+	Private aVetor := {}
+	Private INCLUI := .F.
+	Private lMsErroAuto := .T.
+	Private lMsHelpAuto := .T.
+	Private lAutoErrNoFile := .T.
+
+	begin sequence
+
+		for nIndex := 1 to oCustomersList:getCount()
+
+			oErrorJson := JsonObject():New()
+
+			oCustomer := ::FindById(oCustomersList:GetItem(nIndex):cCode, oCustomersList:GetItem(nIndex):cStore)
+
+			if (!oCustomer["data"]:GetCount() > 0)
+
+				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
+				oErrorJson["message"] := EncodeUTF8("Cliente com o id " + oCustomersList:GetItem(nIndex):cCode + " e store "+oCustomersList:GetItem(nIndex):cStore+" não existe no Protheus.")
+				aAdd(oCustomersList:GetItem(nIndex):aErrors, oErrorJson)
+
+				loop
+
+			endif
+
+			oCountry := ::FindByCountryId(oCustomersList:GetItem(nIndex):cCountryCode)
+
+			if !(oCountry["data"]:GetCount() > 0)
+
+				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
+				oErrorJson["message"] := EncodeUTF8("País com código " + oCustomersList:GetItem(nIndex):cCountryCode + " não existe no Protheus.")
+				aAdd(oCustomersList:GetItem(nIndex):aErrors, oErrorJson)
+
+				loop
+
+			endIf
+
+			aVetor := {}
+			aAdd(aVetor, {"A1_FILIAL" , AllTrim(oCustomer["data"]:GetItem(1):cBranchCode), Nil})
+			aAdd(aVetor, {"A1_COD" , AllTrim(oCustomer["data"]:GetItem(1):cCode), Nil})
+			aAdd(aVetor, {"A1_LOJA" , AllTrim(oCustomer["data"]:GetItem(1):cStore), Nil})
+			aAdd(aVetor, {"A1_NOME" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cFirstName)), Nil})
+			aAdd(aVetor, {"A1_PESSOA" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cPersonType)), Nil})
+			//aAdd(aVetor, {"A1_CGC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cCpfCnpj)) , Nil})
+			aAdd(aVetor, {"A1_TIPO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cType)), Nil})
+			aAdd(aVetor, {"A1_NREDUZ" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cLastName)), Nil})
+			aAdd(aVetor, {"A1_END" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cAddress)), Nil})
+			aAdd(aVetor, {"A1_COMPLEM" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cComplement)), Nil})
+			aAdd(aVetor, {"A1_EST" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cState)), Nil})
+			aAdd(aVetor, {"A1_COD_MUN" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cCityId)), Nil})
+			aAdd(aVetor, {"A1_MUN" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cCity)), Nil})
+			aAdd(aVetor, {"A1_BAIRRO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cNeighborhood)), Nil})
+			aAdd(aVetor, {"A1_CEP" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cZipCode)), Nil})
+			aAdd(aVetor, {"A1_DDD" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cDDD)), Nil})
+			aAdd(aVetor, {"A1_TEL" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cPhone)), Nil})
+			aAdd(aVetor, {"A1_FAX" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cFax)), Nil})
+			aAdd(aVetor, {"A1_CONTATO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cContact)), Nil})
+			aAdd(aVetor, {"A1_INSCR" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cStateInscription)), Nil})
+			aAdd(aVetor, {"A1_EMAIL" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cEmail)), Nil})
+			aAdd(aVetor, {"A1_HPAGE" , "", Nil})
+			aAdd(aVetor, {"A1_ENDCOB" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingAddress)), Nil})
+			aAdd(aVetor, {"A1_ESTC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingState)), Nil})
+			aAdd(aVetor, {"A1_MUNC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingCity)), Nil})
+			aAdd(aVetor, {"A1_BAIRROC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingNeighborhood)), Nil})
+			aAdd(aVetor, {"A1_CEPC" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cBillingZipCode)), Nil})
+			aAdd(aVetor, {"A1_CONTRIB" , IIf(oCustomersList:GetItem(nIndex):lIsTaxpayer, "1","2"), Nil})
+			aAdd(aVetor, {"A1_FOMEZER" , IIf(oCustomersList:GetItem(nIndex):lIsZeroHunger, "1","2"), Nil})
+			aAdd(aVetor, {"A1_PAIS"    , AllTrim(oCustomersList:GetItem(nIndex):cCountryCode), Nil})
+			aAdd(aVetor, {"A1_CODPAIS" , AllTrim( oCountry["data"]:GetItem(1)["cCountryIdBacen"]), Nil})
+			aAdd(aVetor, {"A1_SATIV1" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cSegment)), Nil})
+			aAdd(aVetor, {"A1_LC" , oCustomersList:GetItem(nIndex):nCreditLimit, Nil})
+			aAdd(aVetor, {"A1_RISCO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cRiskLevel)), Nil})
+			aAdd(aVetor, {"A1_SUFRAMA" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cSuframaCode)), Nil})
+			aAdd(aVetor, {"A1_YDVSAO" , Upper(AllTrim(oCustomersList:GetItem(nIndex):cDivision)), Nil})
+
+			aVetor := aClone(::OrderData(aVetor))
+
+			begin Transaction
+
+				SetFunName("MATA030")
+
+				lMsErroAuto := .F.
+
+				MSExecAuto({ |x,y| MATA030(x,y)}, aVetor, nOperation)
+
+				if (lMsErroAuto)
+
+					DisarmTransaction()
+
+					oErrorJson["type"] := "E_EXECAUTO"
+					oErrorJson["message"] := "Erro ao atualizar Cliente no Protheus. Favor verificar os campos!"
+					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
+					aAdd(oCustomersList:GetItem(nIndex):aErrors, oErrorJson)
+
+				endif
+
+			end transaction
+
+		next nIndex
+
+	end sequence
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return oCustomersList
+
+Method Show(cCustomerId as character, cCustomerStore as character) Class TCustomerService
+
+	Local oErrorJson := Nil as object
+	Local oCustomer := JsonObject():New() as object
+
+	begin sequence
+
+		oCustomer := ::FindById(cCustomerId, cCustomerStore)
+
+		oErrorJson := JsonObject():New()
+
+		if (!oCustomer["data"]:GetCount() > 0)
+
+			cError := EncodeUTF8("Cliente com o id " + cCustomerId + " e store "+cCustomerStore+" não existe no Protheus.")
+
+			break
+
+		endif
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oCustomer)
+
+Method Destroy(oCustomersList as object) Class TCustomerService
+
+	Local aArea := GetArea() as character
+	local nIndex := 0 as numeric
+	Local nOperation := 5 as numeric // EXCLUSÃO
+	Local oErrorJson := Nil as object
+	Local oCustomer := Nil as object
+
+	Private aVetor := {}
+	Private INCLUI := .F.
+	Private lMsErroAuto := .T.
+	Private lMsHelpAuto := .T.
+	Private lAutoErrNoFile := .T.
+
+	begin sequence
+
+		for nIndex := 1 to oCustomersList:getCount()
+
+			oErrorJson := JsonObject():New()
+
+			oCustomer := ::FindById(oCustomersList:GetItem(nIndex):cCode)
+
+			if (!oCustomer["data"]:GetCount() > 0)
+
+				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
+				oErrorJson["message"] := EncodeUTF8("Cliente com o id " + oCustomersList:GetItem(nIndex):cCode + " e store "+oCustomersList:GetItem(nIndex):cStore+" não existe no Protheus.")
+				aAdd(oCustomersList:GetItem(nIndex):aErrors, oErrorJson)
+
+				loop
+			endif
+
+			aVetor := {}
+			aAdd(aVetor, {"A1_FILIAL" , xFilial("SA1"), Nil})
+			aAdd(aVetor, {"A1_COD" , AllTrim(oCustomer["data"]:GetItem(1):cCode), Nil})
+			aAdd(aVetor, {"A1_LOJA" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cStore)), Nil})
+			aAdd(aVetor, {"A1_NOME" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cFirstName)), Nil})
+			aAdd(aVetor, {"A1_PESSOA" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cPersonType)), Nil})
+			aAdd(aVetor, {"A1_CGC" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cCpfCnpj)) , Nil})
+			aAdd(aVetor, {"A1_TIPO" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cType)), Nil})
+			aAdd(aVetor, {"A1_NREDUZ" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cLastName)), Nil})
+			aAdd(aVetor, {"A1_END" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cAddress)), Nil})
+			aAdd(aVetor, {"A1_COMPLEM" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cComplement)), Nil})
+			aAdd(aVetor, {"A1_EST" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cState)), Nil})
+			aAdd(aVetor, {"A1_COD_MUN" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cCityId)), Nil})
+			aAdd(aVetor, {"A1_MUN" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cCity)), Nil})
+			aAdd(aVetor, {"A1_BAIRRO" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cNeighborhood)), Nil})
+			aAdd(aVetor, {"A1_CEP" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cZipCode)), Nil})
+			aAdd(aVetor, {"A1_DDD" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cDDD)), Nil})
+			aAdd(aVetor, {"A1_TEL" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cPhone)), Nil})
+			aAdd(aVetor, {"A1_FAX" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cFax)), Nil})
+			aAdd(aVetor, {"A1_CONTATO" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cContact)), Nil})
+			aAdd(aVetor, {"A1_INSCR" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cStateInscription)), Nil})
+			aAdd(aVetor, {"A1_EMAIL" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cEmail)), Nil})
+			aAdd(aVetor, {"A1_HPAGE" , "", Nil})
+			aAdd(aVetor, {"A1_NATUREZ" , '001', Nil})
+			aAdd(aVetor, {"A1_ENDCOB" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cBillingAddress)), Nil})
+			aAdd(aVetor, {"A1_ESTC" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cBillingState)), Nil})
+			aAdd(aVetor, {"A1_MUNC" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cBillingCity)), Nil})
+			aAdd(aVetor, {"A1_BAIRROC" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cBillingNeighborhood)), Nil})
+			aAdd(aVetor, {"A1_CEPC" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cBillingZipCode)), Nil})
+			aAdd(aVetor, {"A1_CONTRIB" , IIf(oCustomer["data"]:GetItem(1):lIsTaxpayer, "1","2"), Nil})
+			aAdd(aVetor, {"A1_FOMEZER" , IIf(oCustomer["data"]:GetItem(1):lIsZeroHunger, "1","2"), Nil})
+			aAdd(aVetor, {"A1_CODPAIS" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cCountryCode)), Nil})
+			aAdd(aVetor, {"A1_SATIV1" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cSegment)), Nil})
+			aAdd(aVetor, {"A1_LC" , oCustomer["data"]:GetItem(1):nCreditLimit, Nil})
+			aAdd(aVetor, {"A1_RISCO" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cRiskLevel)), Nil})
+			aAdd(aVetor, {"A1_SUFRAMA" , Upper(AllTrim(oCustomer["data"]:GetItem(1):cSuframaCode)), Nil})
+
+			aVetor := aClone(::OrderData(aVetor))
+
+			begin Transaction
+
+				SetFunName("MATA030")
+
+				lMsErroAuto := .F.
+
+				MSExecAuto({ |x,y| MATA030(x,y)}, aVetor, nOperation)
+
+				if (lMsErroAuto)
+
+					DisarmTransaction()
+
+					oErrorJson["type"] := "E_EXECAUTO"
+					oErrorJson["message"] := "Erro ao deletar CLIENTE no Protheus. Favor verificar os campos!"
+					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
+					aAdd(oCustomersList:GetItem(nIndex):aErrors, oErrorJson)
+
+				endif
+
+			end transaction
+
+		next nIndex
+
+	end sequence
+
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return(oCustomersList)
+
+Method OrderData(aData as array) Class TCustomerService
+
+	Local aRequiredField := {} as array // Campos obrigatórios
+	Local nIndexData := 0 as numeric // index de Data
+	Local nIndexReqField := 0 as numeric // index de aRequiredField
+	Local aParsedData := {} as array // Novo array de dados
+	Local aAreaSX3 := SX3->(GetArea()) as array
+
+	begin sequence
+
+		DbSelectArea("SX3")
+		SX3->(DbSetOrder(1))
+		SX3->(DbGoTop())
+
+		if (SX3->(DbSeek("SA1")))
+
+			while !SX3->(EOF()) .and. SX3->X3_ARQUIVO == "SA1"
+
+				if (Subs(Bin2str(SX3->X3_OBRIGAT), 1, 1) == "x")
+
+					aAdd(aRequiredField, SX3->X3_CAMPO)
+
+				endif
+
+				for nIndexData := 1 to Len(aData)
+
+					if (AllTrim(SX3->X3_CAMPO) == AllTrim(aData[nIndexData][1]))
+
+						aAdd(aParsedData, aData[nIndexData])
+
+						if (Subs(Bin2Str(SX3->X3_OBRIGAT), 1, 1) == "x" .and. Empty(aData[nIndexData][2]))
+
+							ConOut("TCustomerService::OrderData: Campo" + SX3->X3_CAMPO + "é obrigatório e seu conteudo está vazio!")
+
+						endif
+
+					endif
+
+				next nIndexData
+
+				SX3->(DbSkip())
+
+			endDo
+		endif
+
+		for nIndexReqField := 1 to Len(aRequiredField)
+
+			for nIndexData := 1 to Len(aData)
+
+				if (!AllTrim(aData[nIndexData][1]) == AllTrim(aRequiredField[nIndexReqField]))
+
+					ConOut("TCustomerService::OrderData: Campo " +  AllTrim(aRequiredField[nIndexReqField]) + " é obrigatório e não está no ExecAuto!")
+
+				endif
+
+			next nIndexData
+
+		next nIndexReqField
+
+	end sequence
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aAreaSX3)
+
+Return(aParsedData)
+
+Method ValidadeData(oCustomersList as object) Class TCustomerService
+
+	//TO-DO: Precisa melhorar o código
+
+	Local oModel := TCustomerModel():New() as object
+	Local nIndexCustomer := 0 as numeric
+	Local nIndexField := 0 as numeric
+	Local aFields := oModel:GetFields() as array
+
+	Local oErrorJson := Nil as object
+
+	Local oDataType := JsonObject():New() as object
+
+
+	begin sequence
+
+		oDataType["A"] := "array"
+		oDataType["B"] := "block of code"
+		oDataType["C"] := "string"
+		oDataType["D"] := "date"
+		oDataType["L"] := "booleano"
+		oDataType["N"] := "number"
+		oDataType["O"] := "object"
+		oDataType["U"] := "null"
+
+		for nIndexCustomer := 1 to oCustomersList:getCount()
+
+			oErrorJson := JsonObject():New()
+
+			for nIndexField := 1 to Len(aFields)
+
+				if ( ValType(oCustomersList:getItem(nIndexCustomer)[aFields[nIndexField][1]]) != ValType(aFields[nIndexField][3]) )
+
+					oErrorJson["type"] := "ERROR_VALIDATION"
+					oErrorJson["message"] := "O campo " + aFields[nIndexField][2] + " é do tipo " + oDataType[ValType(aFields[nIndexField][1])]
+					oErrorJson["message"] += ". Favor verificar os dados enviados!"
+					aAdd(oCustomersList:GetItem(nIndexCustomer):aErrors, oErrorJson)
+
+				endif
+
+			next nIndexField
+
+		next nIndexCustomer
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(.T.)
+
+Method ErrorExecAuto(aError as array) Class TCustomerService
+
+	Local aErrorParsed := {} as array
+	Local nIndexError := 0 as numeric
+
+	for nIndexError := 1 to Len(aError)
+
+		aAdd(aErrorParsed, EncodeUTF8(aError[nIndexError]))
+
+	next nIndexData
+
+Return(aErrorParsed)
+
+Method FindByCpfCnpj(cCpfCnpj as character) Class TCustomerService
+
+	Local cAliasQuery := GetNextAlias() as character
+	Local cQuery := "" as character
+	Local oModel := Nil as object
+
+	Local oList := ArrayList():New() as object
+
+	begin sequence
+
+		if Empty(cCpfCnpj)
+
+			cError := EncodeUTF8("o campo cCpfCnpj é obrigatório para buscar o cliente")
+
+			break
+
+		endif
+
+		cQuery := "SELECT SA1.A1_COD, SA1.A1_LOJA, SA1.A1_NOME, SA1.A1_CGC "
+		cQuery += "FROM "+RetSQLName("SA1")+" SA1 "
+		cQuery += "WHERE SA1.A1_CGC = "+ ValToSQL(cCpfCnpj)
+		cQuery += " AND D_E_L_E_T_ = '' "
+
+
+		If Select(cAliasQuery) > 0
+
+			( cAliasQuery )->( DbCloseArea() )
+
+		EndIf
+
+		TcQuery cQuery New Alias (cAliasQuery)
+
+		(cAliasQuery)->(DbGoTop())
+
+		While (cAliasQuery)->(!EOF())
+
+			oModel := TCustomerModel():New()
+
+			oModel:cCode := AllTrim( ( cAliasQuery )->A1_COD )
+			oModel:cStore := AllTrim( ( cAliasQuery )->A1_LOJA )
+			oModel:cFirstName := AllTrim( EncodeUTF8( ( cAliasQuery )->A1_NOME ) )
+			oModel:cCpfCnpj := AllTrim( ( cAliasQuery )->A1_CGC )
+
+			oList:Add( oModel )
+
+			(cAliasQuery)->(DBSkip())
+
+		EndDo
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oList)
+
+Method FindById(cCustomerId as character, cCustomerStore as character) Class TCustomerService
+
+	Local oModel := Nil as object
+	Local oList := ArrayList():New() as object
+	Local oCustomerData := JsonObject():New() as object
+
+	begin sequence
+
+		if (Empty(cCustomerId) .and. Empty(cCustomerStore))
+
+			cError := EncodeUTF8("o campo cCustomerId e cCustomerStore é obrigatório para buscar o cliente")
+
+			break
+
+		endif
+
+		SA1->( dbSetOrder(1))
+		If !SA1->(dbSeek(xFilial("SA1")+cCustomerId+cCustomerStore))
+
+			oCustomerData["page"] := 1
+			oCustomerData["per_page"] := 1
+			oCustomerData["total"] := 1
+			oCustomerData["last_page"] := 1
+			oCustomerData["data"] := oList
+
+			Return(oCustomerData)
+
+		EndIf
+
+		oModel := TCustomerModel():New()
+
+		oModel:cBranchCode := SA1->A1_FILIAL
+		oModel:cCode :=  SA1->A1_COD
+		oModel:cStore := SA1->A1_LOJA
+		oModel:cFirstName := AllTrim( SA1->A1_NOME)
+		oModel:cPersonType := AllTrim( SA1->A1_PESSOA)
+		oModel:cCpfCnpj := AllTrim( SA1->A1_CGC)
+		oModel:cType := AllTrim( SA1->A1_TIPO)
+		oModel:cLastName := AllTrim( SA1->A1_NREDUZ)
+		oModel:cAddress := AllTrim( SA1->A1_END)
+		oModel:cNeighborhood := AllTrim( SA1->A1_BAIRRO)
+		oModel:cComplement := AllTrim( SA1->A1_COMPLEM)
+		oModel:cState := AllTrim( SA1->A1_EST)
+		oModel:cZipCode := AllTrim( SA1->A1_CEP)
+		oModel:cCityId := AllTrim( SA1->A1_COD_MUN)
+		oModel:cDDD := AllTrim( SA1->A1_DDD )
+		oModel:cPhone := AllTrim( SA1->A1_TEL)
+		oModel:cCity := AllTrim( SA1->A1_MUN )
+		oModel:cFax := AllTrim( SA1->A1_FAX )
+		oModel:cContact := AllTrim( SA1->A1_CONTATO )
+		oModel:cBillingAddress := AllTrim( SA1->A1_ENDCOB )
+		oModel:cBillingState := AllTrim( SA1->A1_ESTC )
+		oModel:cBillingCity := AllTrim( SA1->A1_MUNC )
+		oModel:cBillingNeighborhood := AllTrim( SA1->A1_BAIRROC )
+		oModel:cBillingZipCode := AllTrim( SA1->A1_CEPC )
+		oModel:lIsTaxpayer :=  Iif(SA1->A1_CONTRIB == "1", .T. ,.F.)
+		oModel:lIsZeroHunger := Iif( SA1->A1_FOMEZER == "1", .T. ,.F. )
+		oModel:cCountryCode := AllTrim( SA1->A1_CODPAIS )
+		oModel:cSegment := AllTrim( SA1->A1_SATIV1 )
+		oModel:nCreditLimit := SA1->A1_LC
+		oModel:cRiskLevel := AllTrim( SA1->A1_RISCO )
+		oModel:cSuframaCode := AllTrim( SA1->A1_SUFRAMA )
+		oModel:cStateInscription := AllTrim( SA1->A1_INSCR)
+		oModel:cCityInscription := AllTrim( SA1->A1_INSCRM )
+		oModel:cEmail := AllTrim( SA1->A1_EMAIL)
+		oModel:cDivision := AllTrim( SA1->A1_YDVSAO)
+
+		oList:Add( oModel )
+
+		oCustomerData["page"] := 1
+		oCustomerData["per_page"] := 1
+		oCustomerData["total"] := 1
+		oCustomerData["last_page"] := 1
+		oCustomerData["data"] := oList
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oCustomerData)
+
+Method FindByCountryId(cCountryId as character) Class TCustomerService
+
+	Local oList := ArrayList():New() as object
+	Local oCountryData := JsonObject():New() as object
+	Local oModel := JsonObject():New() as object
+
+	begin sequence
+
+		If Empty(cCountryId)
+
+			cError := EncodeUTF8("O campo cCountryId é obrigatório para buscar o Pais.")
+
+			break
+
+		EndIf
+
+		SYA->( dbSetOrder(1))
+		If !SYA->(dbSeek(xFilial("SYA")+cCountryId))
+			oCountryData["data"] := oList
+
+			Return(oCountryData)
+
+		EndIf
+
+		oModel["cCode"] := SYA->YA_CODGI
+		oModel["cCountryName"] := AllTrim(SYA->YA_DESCR)
+		oModel["cCountryIdBacen"] := "0"+SYA->YA_SISEXP
+
+		oList:Add( oModel )
+
+		oCountryData["data"] := oList
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oCountryData)
+

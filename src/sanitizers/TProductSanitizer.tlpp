@@ -1,0 +1,69 @@
+#INCLUDE 'TOTVS.CH'
+
+Class TProductSanitizer
+
+	Public Method New() Constructor
+	Public Method ToCreateOrUpdate()
+	Public Method ToUpdate()
+	Public Method ToDestroy()
+
+EndClass
+
+Method New() Class TProductSanitizer
+
+Return
+
+Method ToCreateOrUpdate(aProducts as array) Class TProductSanitizer
+
+	Local oModel := Nil as Object
+	Local oList := ArrayList():New() as Object
+
+	Local nIndex := 0 as numeric
+
+	for nIndex := 1 to Len(aProducts)
+
+		oModel := TProductModel():New()
+
+		oModel:cCode := iif( !Empty(aProducts[nIndex]["id"]) , aProducts[nIndex]["id"] , "")
+		oModel:cDescription := iif( !Empty(aProducts[nIndex]["description"]) , aProducts[nIndex]["description"] , "")
+		oModel:cType := iif( !Empty(aProducts[nIndex]["type"]) , aProducts[nIndex]["type"] , "")
+		oModel:cUnitMeasure := iif( !Empty(aProducts[nIndex]["unit_measure"]) , aProducts[nIndex]["unit_measure"] , "")
+		oModel:cStockWarehouse := iif( !Empty(aProducts[nIndex]["stock_warehouse"]) , aProducts[nIndex]["stock_warehouse"] , "")
+		oModel:cStockGroup := iif( !Empty(aProducts[nIndex]["stock_group"]) , aProducts[nIndex]["stock_group"] , "")
+		oModel:nPercentageIcms := iif( !Empty(aProducts[nIndex]["percentage_icms"]) , aProducts[nIndex]["percentage_icms"] , "")
+		oModel:nPercentageIpi := iif( !Empty(aProducts[nIndex]["percentage_ipi"]) , aProducts[nIndex]["percentage_ipi"] , "")
+		oModel:cNcm := iif( !Empty(aProducts[nIndex]["ncm"]) , aProducts[nIndex]["ncm"] , "")
+		oModel:cConversionType := iif( !Empty(aProducts[nIndex]["conversion_type"]) , aProducts[nIndex]["conversion_type"] , "")
+		oModel:dRevisionDate := iif( !Empty(aProducts[nIndex]["revision_date"]) , SToD(aProducts[nIndex]["revision_date"]) , SToD(""))
+		oModel:dCostRefDate := iif( !Empty(aProducts[nIndex]["cost_ref_date"]) , SToD(aProducts[nIndex]["cost_ref_date"]) , SToD(""))
+		oModel:cReference := iif( !Empty(aProducts[nIndex]["reference"]) , aProducts[nIndex]["reference"] , "")
+		oModel:cModel := iif( !Empty(aProducts[nIndex]["model"]) , aProducts[nIndex]["model"] , "")
+		oModel:lIsEssential := aProducts[nIndex]["is_essential"]
+		oModel:cOrigin :=  iif( !Empty(aProducts[nIndex]["origin"]) , aProducts[nIndex]["origin"] , "")
+		oModel:aErrors := {}
+
+		oList:Add( oModel )
+
+	next nIndex
+
+Return(oList)
+
+
+Method ToDestroy(aProducts as array) Class TProductSanitizer
+
+	Local oModel := Nil as Object
+	Local oList := ArrayList():New() as Object
+
+	Local nIndex := 0 as numeric
+
+	for nIndex := 1 to Len(aProducts)
+
+		oModel := TProductModel():New()
+
+		oModel:cCode := iif( !Empty(aProducts[nIndex]["id"]) , aProducts[nIndex]["id"] , "")
+
+		oList:Add( oModel )
+
+	next nIndex
+
+Return(oList)

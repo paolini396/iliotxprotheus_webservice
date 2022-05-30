@@ -1,0 +1,231 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+Class TCityService
+
+  Public Method New() Constructor
+  Public Method List() // Listar Cidades no protheus
+  Public Method Show() //Buscar Cidades no Protheus
+  Public Method FindByIdAndState() // Buscar cidade por ID (code) e Estado
+
+EndClass
+
+Method New() Class TCityService
+
+Return
+
+Method List(cSearch as character, nPage as numeric, nPerPage as numeric, lAllPage as logical, cState as character) Class TCityService
+
+  Local cAliasQuery := GetNextAlias() as character
+  Local cQuery := "" as character
+  Local cWhere := "WHERE (1=1) " as character
+  Local oModel := Nil as object
+
+  Local nStartPage := 1 as numeric
+  Local nCount := 0 as numeric
+  Local nDataSize := 0 as numeric
+  Local nLastPage := 1 as numeric
+
+  Local oList := ArrayList():New() as object
+  Local oCityData := JsonObject():New() as object
+
+  Default nRecord := 0
+
+  begin sequence
+
+  if !Empty(cSearch) .and. !Empty(cState)
+
+    cWhere += " AND CC2.CC2_EST = " + ValTOSQL(cState)
+    cWhere += " AND CC2.CC2_MUN LIKE '%" + AllTrim(cSearch) + "%' "
+
+  elseIf !Empty(cSearch)
+
+    cWhere += "AND (CC2.CC2_CODMUN LIKE '%" + AllTrim(cSearch) + "%' OR "
+    cWhere += "CC2.CC2_MUN LIKE '%" + Upper(AllTrim(cSearch)) + "%' )"
+
+  
+  elseIf !Empty(cState)
+
+    cWhere += " AND CC2.CC2_EST = " + ValTOSQL(cState)
+
+  endif
+
+  cQuery := "SELECT CC2.CC2_EST , CC2.CC2_CODMUN, CC2.CC2_MUN "
+  cQuery += "FROM "+RetSQLName("CC2")+" CC2 "
+  cQuery += cWhere
+  cQuery += " AND CC2.D_E_L_E_T_ = '' "
+
+  If Select(cAliasQuery) > 0
+
+    ( cAliasQuery )->( DbCloseArea() )
+
+  EndIf
+
+  TcQuery cQuery New Alias (cAliasQuery)
+
+  if ( cAliasQuery )->( !Eof() )
+
+    COUNT TO nRecord
+
+    if lAllPage
+      nPage := 1
+      nPerPage := nRecord
+    endif
+
+    if nPage > 1
+
+      nStartPage := ( ( nPage - 1 ) * nPerPage ) + 1
+      nDataSize := nRecord - nStartPage + 1
+
+    else
+
+      nDataSize := nRecord
+
+    endif
+
+    nLastPage := if(NoRound(nRecord / nPerPage, 2) >= 1.01, NoRound(nRecord / nPerPage, 0) + 1, NoRound(nRecord / nPerPage, 0) ) // arrendodamento
+
+    (cAliasQuery)->(DbGoTop())
+
+  endif
+
+
+  While (cAliasQuery)->(!EOF())
+
+    nCount++
+
+    if nCount >= nStartPage
+
+      oModel := TCityModel():New()
+
+      oModel:cCode := AllTrim( ( cAliasQuery )->CC2_CODMUN )
+      oModel:cState := AllTrim( ( cAliasQuery )->CC2_EST )
+      oModel:cName := AllTrim( EncodeUTF8( ( cAliasQuery )->CC2_MUN ) )
+
+      oList:Add( oModel )
+
+      if !lAllPage .and. oList:getCount() >= nPerPage
+        exit
+      endif
+
+    endif
+
+    (cAliasQuery)->(DBSkip())
+
+  EndDo
+
+  oCityData["page"] := nPage
+  oCityData["per_page"] := nPerPage
+  oCityData["total"] := nRecord
+  oCityData["last_page"] := nLastPage
+  oCityData["data"] := oList
+
+  end sequence
+
+  if !Empty(cError)
+
+    break
+
+  endif
+
+Return(oCityData)
+
+Method Show(cCityId as character, cState as character) Class TCityService
+
+  Local oErrorJson := Nil as object
+  Local oCity := JsonObject():New() as object
+
+  begin sequence
+      
+    oCity := ::FindByIdAndState(cCityId, cState)
+
+    oErrorJson := JsonObject():New()
+
+    if (!oCity["data"]:GetCount() > 0)
+
+      cError := EncodeUTF8("Cidade/Município com o código " + cCityId + " não existe no Protheus.")
+
+      break
+      
+    endif
+
+  end sequence
+
+  if !Empty(cError)
+
+    break
+
+  endif
+
+Return(oCity)
+
+Method FindByIdAndState(cCityId as character, cState as character) Class TCityService
+
+  Local cAliasQuery := GetNextAlias() as character
+  Local cQuery := "" as character
+  Local oModel := Nil as object
+
+  Local oList := ArrayList():New() as object
+  Local oCityData := JsonObject():New() as object
+
+  begin sequence
+
+  if Empty(cCityId)
+
+    cError := EncodeUTF8("o campo ID é obrigatório para buscar a Cidade/Município.")
+
+    break
+  
+  elseIf Empty(cState)
+
+   cError := EncodeUTF8("o campo state é obrigatório para buscar a Cidade/Município.")
+
+    break
+
+  endif
+
+  cQuery := "SELECT CC2.CC2_EST , CC2.CC2_CODMUN, CC2.CC2_MUN "
+  cQuery += "FROM "+RetSQLName("CC2")+" CC2 "
+  cQuery += "WHERE CC2.CC2_CODMUN = "+ ValToSQL(cCityId)
+  cQuery += " AND CC2.CC2_EST = " + ValTOSQL(cState)
+  cQuery += " AND CC2.D_E_L_E_T_ = '' "
+
+  If Select(cAliasQuery) > 0
+
+    ( cAliasQuery )->( DbCloseArea() )
+
+  EndIf
+
+  TcQuery cQuery New Alias (cAliasQuery)
+
+  (cAliasQuery)->(DbGoTop())
+
+  While (cAliasQuery)->(!EOF())
+
+    oModel := TCityModel():New()
+
+    oModel:cCode := AllTrim( ( cAliasQuery )->CC2_CODMUN )
+    oModel:cState := AllTrim( ( cAliasQuery )->CC2_EST )
+    oModel:cName := AllTrim( EncodeUTF8( ( cAliasQuery )->CC2_MUN ) )
+
+    oList:Add( oModel )
+
+    (cAliasQuery)->(DBSkip())
+
+  EndDo
+
+  oCityData["page"] := 1
+  oCityData["per_page"] := 1
+  oCityData["total"] := 1
+  oCityData["last_page"] := 1
+  oCityData["data"] := oList
+
+  end sequence
+
+  if !Empty(cError)
+
+    break
+
+  endif
+
+Return(oCityData)

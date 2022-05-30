@@ -1,0 +1,88 @@
+#INCLUDE 'TOTVS.CH'
+
+Class TCustomerSanitizer
+
+  Public Method New() Constructor
+  Public Method ToCreateOrUpdate() 
+  Public Method ToUpdate() 
+  Public Method ToDestroy() 
+
+EndClass
+
+Method New() Class TCustomerSanitizer
+
+Return
+
+Method ToCreateOrUpdate(aCustomers as array) Class TCustomerSanitizer
+
+   Local oModel := Nil as Object
+  Local oList := ArrayList():New() as Object
+
+  Local nIndex := 0 as numeric
+
+  for nIndex := 1 to Len(aCustomers)
+
+    oModel := TCustomerModel():New()
+
+    oModel:cCode := iif( !Empty(aCustomers[nIndex]["id"]) , aCustomers[nIndex]["id"] , "")
+    oModel:cStore := iif( !Empty(aCustomers[nIndex]["store"]) , aCustomers[nIndex]["store"] , "")
+    oModel:cFirstName := iif( !Empty(aCustomers[nIndex]["first_name"]) , aCustomers[nIndex]["first_name"] , "")
+    oModel:cPersonType := iif( !Empty(aCustomers[nIndex]["person_type"]) , aCustomers[nIndex]["person_type"] , "")
+    oModel:cType := iif( !Empty(aCustomers[nIndex]["type"]) , aCustomers[nIndex]["type"] , "")
+    oModel:cLastName := iif( !Empty(aCustomers[nIndex]["last_name"]) , aCustomers[nIndex]["last_name"] , "")
+    oModel:cAddress := iif( !Empty(aCustomers[nIndex]["address"]) , aCustomers[nIndex]["address"] , "")
+    oModel:cNeighborhood := iif( !Empty(aCustomers[nIndex]["neighborhood"]) , aCustomers[nIndex]["neighborhood"] , "")
+    oModel:cComplement := iif( !Empty(aCustomers[nIndex]["complement"]) , aCustomers[nIndex]["complement"] , "")
+    oModel:cState := iif( !Empty(aCustomers[nIndex]["state"]) , aCustomers[nIndex]["state"] , "")
+    oModel:cZipCode := iif( !Empty(aCustomers[nIndex]["zip_code"]) , aCustomers[nIndex]["zip_code"] , "")
+    oModel:cCityId := iif( !Empty(aCustomers[nIndex]["city_id"]) , aCustomers[nIndex]["city_id"] , "")
+    oModel:cDDD := iif( !Empty(aCustomers[nIndex]["ddd"]) , aCustomers[nIndex]["ddd"] , "")
+    oModel:cPhone := iif( !Empty(aCustomers[nIndex]["phone"]) , aCustomers[nIndex]["phone"] , "")
+    oModel:cCity := iif( !Empty(aCustomers[nIndex]["city"]) , aCustomers[nIndex]["city"] , "")
+    oModel:cFax := iif( !Empty(aCustomers[nIndex]["fax"]) , aCustomers[nIndex]["fax"] , "")
+    oModel:cContact := iif( !Empty(aCustomers[nIndex]["contact"]) , aCustomers[nIndex]["contact"] , "")
+    oModel:cBillingAddress := iif( !Empty(aCustomers[nIndex]["billing_address"]) , aCustomers[nIndex]["billing_address"] , "")
+    oModel:cBillingState := iif( !Empty(aCustomers[nIndex]["billing_state"]) , aCustomers[nIndex]["billing_state"] , "")
+    oModel:cBillingCity := iif( !Empty(aCustomers[nIndex]["billing_city"]) , aCustomers[nIndex]["billing_city"] , "")
+    oModel:cBillingNeighborhood := iif( !Empty(aCustomers[nIndex]["billing_neighborhood"]) , aCustomers[nIndex]["billing_neighborhood"] , "")
+    oModel:cBillingZipCode := iif( !Empty(aCustomers[nIndex]["billing_zip_code"]) , aCustomers[nIndex]["billing_zip_code"] , "")
+    oModel:lIsTaxpayer := aCustomers[nIndex]["is_taxpayer"]
+    oModel:lIsZeroHunger := aCustomers[nIndex]["is_zero_hunger"]
+    oModel:cCountryCode := iif( !Empty(aCustomers[nIndex]["country_code"]) , aCustomers[nIndex]["country_code"] , "")
+    oModel:cSegment := iif( !Empty(aCustomers[nIndex]["segment"]) , aCustomers[nIndex]["segmnet"] , "")
+    oModel:nCreditLimit := aCustomers[nIndex]["credit_limit"]
+    oModel:cRiskLevel := iif( !Empty(aCustomers[nIndex]["risk_level"]) , aCustomers[nIndex]["risk_level"] , "")
+    oModel:cSuframaCode := iif( !Empty(aCustomers[nIndex]["suframa_code"]) , aCustomers[nIndex]["suframa_code"] , "")
+    oModel:cCpfCnpj := iif( !Empty(aCustomers[nIndex]["cpf_cnpj"]) , aCustomers[nIndex]["cpf_cnpj"] , "")
+    oModel:cRg := iif( !Empty(aCustomers[nIndex]["rg"]) , aCustomers[nIndex]["rg"] , "")
+    oModel:cStateInscription := iif( !Empty(aCustomers[nIndex]["state_inscription"]) , aCustomers[nIndex]["state_inscription"] , "")
+    oModel:cCityInscription := iif( !Empty(aCustomers[nIndex]["city_inscription"]) , aCustomers[nIndex]["city_inscription"] , "")
+    oModel:cEmail := iif( !Empty(aCustomers[nIndex]["email"]) , aCustomers[nIndex]["email"] , "")
+    oModel:cDivision := iif( !Empty(aCustomers[nIndex]["division"]) , aCustomers[nIndex]["division"] , "")
+    oModel:aErrors := {}
+
+    oList:Add( oModel )
+
+  next nIndex
+
+Return(oList)
+
+
+Method ToDestroy(aCustomers as array) Class TCustomerSanitizer
+
+   Local oModel := Nil as Object
+  Local oList := ArrayList():New() as Object
+
+  Local nIndex := 0 as numeric
+
+  for nIndex := 1 to Len(aCustomers)
+
+    oModel := TCustomerModel():New()
+
+    oModel:cCode := iif( !Empty(aCustomers[nIndex]["id"]) , aCustomers[nIndex]["id"] , "")
+
+    oList:Add( oModel )
+
+  next nIndex
+
+Return(oList)

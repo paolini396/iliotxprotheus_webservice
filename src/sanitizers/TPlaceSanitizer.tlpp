@@ -1,0 +1,64 @@
+#INCLUDE 'TOTVS.CH'
+
+Class TPlaceSanitizer
+
+  Public Method New() Constructor
+  Public Method ToCreateOrUpdate() 
+  Public Method ToUpdate() 
+  Public Method ToDestroy() 
+
+EndClass
+
+Method New() Class TPlaceSanitizer
+
+Return
+
+Method ToCreateOrUpdate(aPlaces as array) Class TPlaceSanitizer
+
+   Local oModel := Nil as Object
+  Local oList := ArrayList():New() as Object
+
+  Local nIndex := 0 as numeric
+
+  for nIndex := 1 to Len(aPlaces)
+
+    oModel := TPlaceModel():New()
+
+    oModel:cCode          := iif( !Empty(aPlaces[nIndex]["id"]) , aPlaces[nIndex]["id"] , "")
+    oModel:cDescription   := iif( !Empty(aPlaces[nIndex]["description"]) , aPlaces[nIndex]["description"] , "")
+    oModel:cEntityType    := iif( !Empty(aPlaces[nIndex]["entity_type"]) , aPlaces[nIndex]["entity_type"] , "")
+    oModel:cCustomerId    := iif( !Empty(aPlaces[nIndex]["customer_id"]) , aPlaces[nIndex]["customer_id"] , "")
+    oModel:cCustomerStore := iif( !Empty(aPlaces[nIndex]["customer_store"]) , aPlaces[nIndex]["customer_store"] , "")
+    oModel:cRegion        := iif( !Empty(aPlaces[nIndex]["region"]) , aPlaces[nIndex]["region"] , "")
+    oModel:cAddress       := iif( !Empty(aPlaces[nIndex]["address"]) , aPlaces[nIndex]["address"] , "")
+    oModel:cNeighborhood  := iif( !Empty(aPlaces[nIndex]["neighborhood"]) , aPlaces[nIndex]["neighborhood"] , "")
+    oModel:cCity          := iif( !Empty(aPlaces[nIndex]["city"]) , aPlaces[nIndex]["city"] , "")
+    oModel:cState         := iif( !Empty(aPlaces[nIndex]["state"]) , aPlaces[nIndex]["state"] , "")
+    oModel:cZipCode       := iif( !Empty(aPlaces[nIndex]["zip_code"]) , aPlaces[nIndex]["zip_code"] , "")
+    oModel:aErrors        := {}
+
+    oList:Add( oModel )
+
+  next nIndex
+
+Return(oList)
+
+
+Method ToDestroy(aPlaces as array) Class TPlaceSanitizer
+
+   Local oModel := Nil as Object
+  Local oList := ArrayList():New() as Object
+
+  Local nIndex := 0 as numeric
+
+  for nIndex := 1 to Len(aPlaces)
+
+    oModel := TPlaceModel():New()
+
+    oModel:cCode := iif( !Empty(aPlaces[nIndex]["id"]) , aPlaces[nIndex]["id"] , "")
+
+    oList:Add( oModel )
+
+  next nIndex
+
+Return(oList)

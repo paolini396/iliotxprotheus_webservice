@@ -1,0 +1,396 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+Class TServiceOrderBaseService
+
+	Public Method New() Constructor
+	Public Method Store(oServiceOrdersBaseList)
+	Public Method Update(oServiceOrdersBaseList)
+	Public Method ValidadeData()
+	Private Method OrderData()
+	Private Method ErrorExecAuto()
+	Public Method FindById(cServiceOrderBaseId)
+	Public Method FindByCustomerIdAndId(cCustomerId, cCustomerStore, cProductId, cServiceOrderBaseId)
+	Public Method CheckCreatedSuccess(oServiceOrdersBaseList)
+
+EndClass
+
+Method New() Class TServiceOrderBaseService
+
+Return
+
+Method Store(oServiceOrdersBaseList as object) Class TServiceOrderBaseService
+
+	Local aArea := GetArea() as array
+	local nIndex := 0 as numeric
+	Local nOperation := 3 as numeric // INCLUSÃO
+	Local oErrorJson := Nil as object
+	Local aHeader := {} as array
+
+	Private INCLUI := .T.
+	Private lMsErroAuto := .T.
+	Private lMsHelpAuto := .T.
+	Private lAutoErrNoFile := .T.
+
+	begin sequence
+
+		for nIndex := 1 to oServiceOrdersBaseList:GetCount()
+
+			oErrorJson := JsonObject():New()
+
+			aHeader := {}
+			aAdd(aHeader, { "AA3_FILIAL"   , xFilial("AA3")                                                        , Nil })
+			aAdd(aHeader, { "AA3_CODCLI"   , Upper(AllTrim(oServiceOrdersBaseList:GetItem(nIndex):cCustomerId))    , Nil })
+			aAdd(aHeader, { "AA3_LOJA"     , Upper(AllTrim(oServiceOrdersBaseList:GetItem(nIndex):cCustomerStore)) , Nil })
+			aAdd(aHeader, { "AA3_DTVEND"   , AllTrim(oServiceOrdersBaseList:GetItem(nIndex):dSaleDate)             , Nil })
+			aAdd(aHeader, { "AA3_DTINST"   , AllTrim(oServiceOrdersBaseList:GetItem(nIndex):dInstallationAt)       , Nil })
+			aAdd(aHeader, { "AA3_DTGAR"    , AllTrim(oServiceOrdersBaseList:GetItem(nIndex):dWarrantyAt)           , Nil })
+			aAdd(aHeader, { "AA3_MODELO"   , Upper(AllTrim(oServiceOrdersBaseList:GetItem(nIndex):cModel))         , Nil })
+			aAdd(aHeader, { "AA3_CODLOC"   , Upper(AllTrim(oServiceOrdersBaseList:GetItem(nIndex):cPlaceId))       , Nil })
+
+			aHeader := aClone(::OrderData(aHeader, "AA3"))
+
+			begin Transaction
+
+				SetFunName("TECA040")
+
+				lMsErroAuto := .F.
+
+				TECA450(,aHeader,, ,nOperation)
+
+				if (lMsErroAuto)
+
+					DisarmTransaction()
+
+					oErrorJson["type"] := "E_EXECAUTO"
+					oErrorJson["message"] := EncodeUTF8("Erro ao cadastrar Base Ordem de Serviço no Protheus. Favor verificar os campos!")
+					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
+					aAdd(oServiceOrdersBaseList:GetItem(nIndex):aErrors, oErrorJson)
+
+				endif
+
+			end transaction
+
+		next nIndex
+
+	end sequence
+
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return(oServiceOrdersBaseList)
+
+Method Update(oServiceOrdersBaseList as object) Class TServiceOrderBaseService
+
+	Local aArea := GetArea() as array
+	local nIndex := 0 as numeric
+	Local nOperation := 4 as numeric // ALTERAÇÃO
+	Local oErrorJson := Nil as object
+	Local oServiceOrderBase := Nil as object
+
+	Local aHeader := {} as array
+
+	Private INCLUI := .F.
+	Private lMsErroAuto := .T.
+	Private lMsHelpAuto := .T.
+	Private lAutoErrNoFile := .T.
+
+	begin sequence
+
+		for nIndex := 1 to oServiceOrdersBaseList:getCount()
+
+			oErrorJson := JsonObject():New()
+
+			oServiceOrderBase := ::FindById(oServiceOrdersBaseList:GetItem(nIndex):cId)
+
+			if (!oServiceOrderBase["data"]:GetCount() > 0)
+
+				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
+				oErrorJson["message"] := EncodeUTF8("Order de Serviço com o id " + oServiceOrdersBaseList:GetItem(nIndex):cId + " não existe no Protheus.")
+				aAdd(oServiceOrdersBaseList:GetItem(nIndex):aErrors, oErrorJson)
+
+				loop
+
+			endif
+
+			aHeader := {}
+			aAdd(aHeader, { "AA3_FILIAL"   , AllTrim(oServiceOrderBase["data"]:GetItem(1):cBranchCode)             , Nil })
+			aAdd(aHeader, { "AA3_NUMSER"   , Upper(AllTrim(oServiceOrderBase["data"]:GetItem(1):cId))              , Nil })
+			aAdd(aHeader, { "AA3_CODCLI"   , Upper(AllTrim(oServiceOrdersBaseList:GetItem(nIndex):cCustomerId))    , Nil })
+			aAdd(aHeader, { "AA3_LOJA"     , Upper(AllTrim(oServiceOrdersBaseList:GetItem(nIndex):cCustomerStore)) , Nil })
+			aAdd(aHeader, { "AA3_DTVEND"   , AllTrim(oServiceOrdersBaseList:GetItem(nIndex):dSaleDate)             , Nil })
+			aAdd(aHeader, { "AA3_DTINST"   , AllTrim(oServiceOrdersBaseList:GetItem(nIndex):dInstallationDate)     , Nil })
+			aAdd(aHeader, { "AA3_DTGAR"    , AllTrim(oServiceOrdersBaseList:GetItem(nIndex):dWarrantyDate)         , Nil })
+			aAdd(aHeader, { "AA3_MODELO"   , Upper(AllTrim(oServiceOrdersBaseList:GetItem(nIndex):cModel))         , Nil })
+
+			aHeader := aClone(::OrderData(aHeader, "AA3"))
+
+			begin Transaction
+
+				SetFunName("TECA040")
+
+				lMsErroAuto := .F.
+
+				TECA450(,aHeader,, ,nOperation)
+
+				if (lMsErroAuto)
+
+					DisarmTransaction()
+
+					oErrorJson["type"] := "E_EXECAUTO"
+					oErrorJson["message"] := EncodeUTF8("Erro ao atualizar Base Ordem de Serviço no Protheus. Favor verificar os campos!")
+					oErrorJson["error"] := ::ErrorExecAuto(GetAutoGRLog())
+					aAdd(oServiceOrdersBaseList:GetItem(nIndex):aErrors, oErrorJson)
+
+				endif
+
+			end transaction
+
+		next nIndex
+
+	end sequence
+
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return(oServiceOrdersBaseList)
+
+Method OrderData(aData as array, cAliasTable as character) Class TServiceOrderBaseService
+
+	Local aRequiredField := {} as array // Campos obrigatórios
+	Local nIndexData := 0 as numeric // index de Data
+	Local nIndexReqField := 0 as numeric // index de aRequiredField
+	Local aParsedData := {} as array // Novo array de dados
+	Local aAreaSX3 := SX3->(GetArea()) as array
+
+	begin sequence
+
+		DbSelectArea("SX3")
+		SX3->(DbSetOrder(1))
+		SX3->(DbGoTop())
+
+		if (SX3->(DbSeek(cAliasTable)))
+
+			while !SX3->(EOF()) .and. SX3->X3_ARQUIVO == cAliasTable
+
+				if (Subs(Bin2str(SX3->X3_OBRIGAT), 1, 1) == "x")
+
+					aAdd(aRequiredField, SX3->X3_CAMPO)
+
+				endif
+
+				for nIndexData := 1 to Len(aData)
+
+					if (AllTrim(SX3->X3_CAMPO) == AllTrim(aData[nIndexData][1]))
+
+						aAdd(aParsedData, aData[nIndexData])
+
+						if (Subs(Bin2Str(SX3->X3_OBRIGAT), 1, 1) == "x" .and. Empty(aData[nIndexData][2]))
+
+							ConOut("TServiceOrderBaseService::OrderData: Campo" + SX3->X3_CAMPO + "é obrigatório e seu conteudo está vazio!")
+
+						endif
+
+					endif
+
+				next nIndexData
+
+				SX3->(DbSkip())
+
+			endDo
+		endif
+
+		for nIndexReqField := 1 to Len(aRequiredField)
+
+			for nIndexData := 1 to Len(aData)
+
+				if (!AllTrim(aData[nIndexData][1]) == AllTrim(aRequiredField[nIndexReqField]))
+
+					ConOut("TServiceOrderBaseService::OrderData: Campo " +AllTrim(aRequiredField[nIndexReqField])+ " é obrigatório e não está no ExecAuto!")
+
+				endif
+
+			next nIndexData
+
+		next nIndexReqField
+
+	end sequence
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aAreaSX3)
+
+Return(aParsedData)
+
+Method ErrorExecAuto(aError as array) Class TServiceOrderBaseService
+
+	Local aErrorParsed := {} as array
+	Local nIndexError := 0 as numeric
+
+	for nIndexError := 1 to Len(aError)
+
+		aAdd(aErrorParsed, EncodeUTF8(aError[nIndexError]))
+
+	next nIndexData
+
+Return(aErrorParsed)
+
+Method FindById(cServiceOrderBaseId as character) Class TServiceOrderBaseService
+
+	Local oModel := Nil as object
+	Local oList := ArrayList():New() as object
+	Local oServiceOrderBaseData := JsonObject():New() as object
+
+	begin sequence
+
+		if Empty(cServiceOrderBaseId)
+
+			cError := EncodeUTF8("o campo ID é obrigatório para buscar Base Ordem de Serviço")
+
+			break
+
+		endif
+
+		AA3->( dbSetOrder(6))
+		If !AA3->(dbSeek(xFilial("AA3")+cServiceOrderBaseId)+xFilial("AA3"))
+
+			oServiceOrderBaseData["page"] := 1
+			oServiceOrderBaseData["per_page"] := 1
+			oServiceOrderBaseData["total"] := 1
+			oServiceOrderBaseData["last_page"] := 1
+			oServiceOrderBaseData["data"] := oList
+
+			Return(oServiceOrderBaseData)
+
+		EndIf
+
+		oModel := TPlaceModel():New()
+
+		oMode:cBranchCode       := AllTrim( AA3->AA3_FILIAL)
+		oMode:cId               := AllTrim( AA3->AA3_NUMSER)
+		oMode:cCustomerId       := AllTrim( AA3->AA3_CODCLI)
+		oMode:cCustomerStore    := AllTrim( AA3->AA3_LOJA)
+		oMode:cProductId        := AllTrim( AA3->AA3_CODPROD)
+		oMode:dSaleDate         := AllTrim( AA3->AA3_DTVEND)
+		oMode:dInstallationDate := AllTrim( AA3->AA3_DTINST)
+		oMode:dWarrantyDate     := AllTrim( AA3->AA3_DTGAR)
+		oMode:cModel            := AllTrim( AA3->AA3_MODELO)
+		oMode:cPlaceId          := AllTrim( AA3->AA3_CODLOC)
+
+		oList:Add( oModel )
+
+		oServiceOrderBaseData["page"] := 1
+		oServiceOrderBaseData["per_page"] := 1
+		oServiceOrderBaseData["total"] := 1
+		oServiceOrderBaseData["last_page"] := 1
+		oServiceOrderBaseData["data"] := oList
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oServiceOrderBaseData)
+
+
+Method FindByCustomerIdAndId(cCustomerId as character, cCustomerStore as character, cProductId as character, cServiceOrderBaseId as character) Class TServiceOrderBaseService
+
+	Local oModel := Nil as object
+	Local oList := ArrayList():New() as object
+	Local oServiceOrderBaseData := JsonObject():New() as object
+
+	begin sequence
+
+		if Empty(cCustomerId .and. cServiceOrderBaseId .and. cCustomerStore)
+
+			cError := EncodeUTF8("Os campos id, customer_id, customer_store é obrigatório para buscar Base Ordem de Serviço")
+
+			break
+
+		endif
+
+		AA3->( dbSetOrder(1))
+		If !AA3->(dbSeek(cCustomerId+cCustomerStore+cProductId+cServiceOrderBaseId+xFilial("AA3")))
+
+			oServiceOrderBaseData["page"] := 1
+			oServiceOrderBaseData["per_page"] := 1
+			oServiceOrderBaseData["total"] := 1
+			oServiceOrderBaseData["last_page"] := 1
+			oServiceOrderBaseData["data"] := oList
+
+			Return(oServiceOrderBaseData)
+
+		EndIf
+
+		oModel := TPlaceModel():New()
+
+		oMode:cBranchCode       := AllTrim( AA3->AA3_FILIAL)
+		oMode:cId               := AllTrim( AA3->AA3_NUMSER)
+		oMode:cCustomerId       := AllTrim( AA3->AA3_CODCLI)
+		oMode:cCustomerStore    := AllTrim( AA3->AA3_LOJA)
+		oMode:cProductId        := AllTrim( AA3->AA3_CODPROD)
+		oMode:dSaleDate         := AllTrim( AA3->AA3_DTVEND)
+		oMode:dInstallationDate := AllTrim( AA3->AA3_DTINST)
+		oMode:dWarrantyDate     := AllTrim( AA3->AA3_DTGAR)
+		oMode:cModel            := AllTrim( AA3->AA3_MODELO)
+		oMode:cPlaceId           := AllTrim( AA3->AA3_CODLOC)
+
+		oList:Add( oModel )
+
+		oServiceOrderBaseData["page"] := 1
+		oServiceOrderBaseData["per_page"] := 1
+		oServiceOrderBaseData["total"] := 1
+		oServiceOrderBaseData["last_page"] := 1
+		oServiceOrderBaseData["data"] := oList
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oServiceOrderBaseData)
+
+
+Method CheckCreatedSuccess(oServiceOrdersBaseList as object) Class TServiceOrderBaseService
+
+	Local nIndex := 0 as numeric
+
+	for nIndex:= 1 to oServiceOrdersBaseList:GetCount()
+
+		if (oServiceOrdersBaseList:GetItem(nIndex):aErrors > 0)
+
+			return(.F.)
+
+		endIf
+
+	next nIndex
+
+Return(.T.)

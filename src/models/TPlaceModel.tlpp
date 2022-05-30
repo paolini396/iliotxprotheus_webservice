@@ -1,0 +1,55 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+/*/{Protheus.doc} TPlaceModel::New
+  Modelo de dados da classe
+  @type class
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+
+Class TPlaceModel
+//                                             CAMPO              VALOR
+	Public Data cBranchCode as character           // ABS_FILIAL
+	Public Data cCode as character                 // ABS_LOCAL
+	Public Data cDescription as character          // ABS_DESCRI
+	Public Data cEntityType as character          // ABS_ENTIDA
+	Public Data cCustomerId as character          // ABS_CODIGO
+	Public Data cCustomerStore as character          // ABS_LOJA
+	Public Data cRegion as character                  // ABS_REGIAO
+	Public Data cAddress as character                  // ABS_END
+	Public Data cNeighborhood as character             // ABS_BAIRRO
+	Public Data cCity as character                   // ABS_MUNIC 
+	Public Data cState as character                   // ABS_ESTADO 
+	Public Data cZipCode as character                   // ABS_CEP 
+	Public Data aErrors as array              
+
+	Public Method New() Constructor
+
+EndClass
+
+/*/{Protheus.doc} TPlaceModel::New
+  Método construtor da classe
+  @type method
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+Method New() Class TPlaceModel
+
+::cBranchCode := ""
+::cCode := ""
+::cDescription := ""
+::cEntityType := ""
+::cCustomerId := ""
+::cCustomerStore := ""
+::cRegion := ""
+::cAddress := ""
+::cNeighborhood := ""
+::cCity := ""
+::cState := ""
+::cZipCode := ""
+::aErrors := {}
+
+Return

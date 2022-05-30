@@ -1,0 +1,151 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+/*/{Protheus.doc} TCustomerModel::New
+  Modelo de dados da classe
+  @type class
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+
+Class TCustomerModel
+//                                             CAMPO              VALOR
+	Public Data cIliotId as character            // Criar campo customizado no Cliente Campo ID ILIOT
+	Public Data cBranchCode as character       // A1_FILIAL
+	Public Data cCode as character             // A1_COD
+	Public Data cStore as character              // A1_LOJA
+	Public Data cFirstName as character        // A1_NOME
+	Public Data cPersonType as character       // A1_PESSOA
+	Public Data cType as character             // A1_TIPO
+	Public Data cLastName as character         // A1_NREDUZ
+	Public Data cAddress as character          // A1_END
+	Public Data cNeighborhood as character     // A1_BAIRRO
+	Public Data cComplement as character       // A1_COMPLEM
+	Public Data cState as character            // A1_EST
+	Public Data cZipCode as character          // A1_CEP
+	Public Data cCityId as character           // A1_COD_MUN
+	Public Data cCity as character             // A1_MUN
+	Public Data cDDD as character            // A1_DDD
+	Public Data cPhone as character            // A1_TEL
+	Public Data cFax as character              // A1_FAX
+	Public Data cContact as character          // A1_CONTATO
+	Public Data cBillingAddress as character   // A1_ENDCOB
+	Public Data cBillingState as character     // A1_ESTC
+	Public Data cBillingCity as character      // A1_MUNC
+	Public Data cBillingNeighborhood as character // A1_MUNC
+	Public Data cBillingZipCode as character      // A1_CEPC
+	Public Data lIsTaxpayer as logical           // A1_CONTRIB       1 - SIM 2 - NÃO
+	Public Data lIsZeroHunger as logical         // A1_FOMEZER       1 - SIM 2 - NÃO
+	Public Data cCountryCode as character      // A1_CODPAIS
+	Public Data cSegment as character          // A1_SATIV1
+	Public Data nCreditLimit as numeric          // A1_LC
+	Public Data cRiskLevel as character          // A1_RISCO
+	Public Data cSuframaCode as character          // A1_SUFRAMA
+	Public Data cCpfCnpj as character          // A1_CGC
+	Public Data cRg as character               // A1_PFISICA
+	Public Data cStateInscription as character // A1_INSCR
+	Public Data cCityInscription as character  // A1_INSCRM
+	Public Data cEmail as character            // A1_EMAIL
+	Public Data cDivision as character         // A1_YDVSAO
+	Public Data aErrors as array               
+
+	Public Method New() Constructor
+	Public Method RequiredFields()
+	Public Method GetFields()
+
+EndClass
+
+/*/{Protheus.doc} TCustomerModel::New
+  Método construtor da classe
+  @type method
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+Method New() Class TCustomerModel
+
+	::cIliotId             := ""
+	::cBranchCode          := ""
+	::cCode                := ""
+	::cStore               := ""
+	::cFirstName           := ""
+	::cPersonType          := ""
+	::cType                := ""
+	::cLastName            := ""
+	::cAddress             := ""
+	::cNeighborhood        := ""
+	::cComplement          := ""
+	::cState               := ""
+	::cZipCode             := ""
+	::cCityId              := ""
+	::cCity                := ""
+	::cDDD                 := ""
+	::cPhone               := ""
+	::cFax                 := ""
+	::cContact             := ""
+	::cBillingAddress      := ""
+	::cBillingState        := ""
+	::cBillingCity         := ""
+	::cBillingNeighborhood := ""
+	::cBillingZipCode      := ""
+	::lIsTaxpayer          := .F.
+	::lIsZeroHunger        := .F.
+	::cCountryCode         := ""
+	::cSegment             := ""
+	::nCreditLimit         := 0
+	::cRiskLevel           := ""
+	::cSuframaCode         := ""
+	::cCpfCnpj             := ""
+	::cRg                  := ""
+	::cStateInscription    := ""
+	::cCityInscription     := ""
+	::cEmail               := ""
+	::cDivision            := ""
+	::aErrors              := {}
+
+Return
+
+Method GetFields() Class TCustomerModel
+
+	Local aFields := {}
+
+//                Model field              Request Field     	      value
+	aAdd(aFields, { "cBranchCode"          , "branch_code"          , "" })
+	aAdd(aFields, { "cCode"                , "id"                   , "" })
+	aAdd(aFields, { "cStore"               , "store"                , "" })
+	aAdd(aFields, { "cFirstName"           , "first_name"           , "" })
+	aAdd(aFields, { "cPersonType"          , "person_type"          , "" })
+	aAdd(aFields, { "cType"                , "type"                 , "" })
+	aAdd(aFields, { "cLastName"            , "last_name"            , "" })
+	aAdd(aFields, { "cAddress"             , "address"              , "" })
+	aAdd(aFields, { "cNeighborhood"        , "neighborhood"         , "" })
+	aAdd(aFields, { "cComplement"          , "complement"           , "" })
+	aAdd(aFields, { "cState"               , "state"                , "" })
+	aAdd(aFields, { "cZipCode"             , "zip_code"             , "" })
+	aAdd(aFields, { "cCityId"              , "city_id"              , "" })
+	aAdd(aFields, { "cCity"                , "city"                 , "" })
+	aAdd(aFields, { "cDDD"                 , "ddd"                  , "" })
+	aAdd(aFields, { "cPhone"               , "phone"                , "" })
+	aAdd(aFields, { "cFax"                 , "fax"                  , "" })
+	aAdd(aFields, { "cContact"             , "contact"              , "" })
+	aAdd(aFields, { "cBillingAddress"      , "billing_address"      , "" })
+	aAdd(aFields, { "cBillingState"        , "billing_state"        , "" })
+	aAdd(aFields, { "cBillingCity"         , "billing_city"         , "" })
+	aAdd(aFields, { "cBillingNeighborhood" , "billing_neighborhood" , "" })
+	aAdd(aFields, { "cBillingZipCode"      , "billing_zip_code"     , "" })
+	aAdd(aFields, { "lIsTaxpayer"          , "is_taxpayer"          , .F.})
+	aAdd(aFields, { "lIsZeroHunger"        , "is_zero_hunger"       , .F.})
+	aAdd(aFields, { "cCountryCode"         , "country_code"         , "" })
+	aAdd(aFields, { "cSegment"             , "segment"              , "" })
+	aAdd(aFields, { "nCreditLimit"         , "credit_limit"         , 0  })
+	aAdd(aFields, { "cRiskLevel"           , "risk_level"           , "" })
+	aAdd(aFields, { "cSuframaCode"         , "suframa_code"         , "" })
+	aAdd(aFields, { "cCpfCnpj"             , "cpf_cnpj"             , "" })
+	aAdd(aFields, { "cRg"                  , "rg"                   , "" })
+	aAdd(aFields, { "cStateInscription"    , "state_inscription"    , "" })
+	aAdd(aFields, { "cCityInscription"     , "city_inscription"     , "" })
+	aAdd(aFields, { "cEmail"               , "email"                , "" })
+	aAdd(aFields, { "aErrors"               , "errors"              , {} })
+
+Return(aFields)

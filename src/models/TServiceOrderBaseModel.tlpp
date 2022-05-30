@@ -1,0 +1,51 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+/*/{Protheus.doc} TServiceOrderBaseModel::New
+  Modelo de dados da classe
+  @type class
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+
+Class TServiceOrderBaseModel
+//                                             CAMPO              VALOR
+	Public Data cBranchCode as character        // AA3_FILIAL
+	Public Data cSerialNumber as character      // AA3_NUMSER
+	Public Data cCustomerId as character        // AA3_CODCLI
+	Public Data cCustomerStore as character     // AA3_LOJA
+	Public Data cProductId as character         // AA3_CODPROD
+	Public Data dSaleAt as date               // AA3_DTVEND
+	Public Data dInstallationAt as date       // AA3_DTINST
+	Public Data dWarrantyAt as date           // AA3_DTGAR
+	Public Data cModel as character            // AA3_MODELO
+	Public Data cPlaceId as character          // AA3_CODLOC
+	Public Data aErrors as array              
+
+	Public Method New() Constructor
+
+EndClass
+
+/*/{Protheus.doc} TServiceOrderBaseModel::New
+  Método construtor da classe
+  @type method
+  @author Gabriel Paolini - Facile Sistemas
+  @since 21/03/2022
+  @version 1.0
+  /*/
+Method New() Class TServiceOrderBaseModel
+
+	::cBranchCode := ""
+	::cSerialNumber := ""
+	::cCustomerId := ""
+	::cCustomerStore := ""
+	::cProductId := ""
+	::dSaleAt :=SToD("")
+	::dInstallationAt := SToD("")
+	::dWarrantyAt := SToD("")
+	::cModel := ""
+	::cPlaceId := ""
+	::aErrors := {}
+
+Return

@@ -1,0 +1,389 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+#INCLUDE "FWMVCDEF.CH"
+
+Class TPlaceService
+
+	Public Method New() Constructor
+	Public Method List()
+	Public Method Store()
+	Public Method Update()
+	Public Method Show()
+	Private Method ErrorMVC()
+	Public Method FindById()
+
+EndClass
+
+Method New() Class TPlaceService
+
+Return
+
+Method List(cSearch as character, nPage as numeric, nPerPage as numeric, lAllPage as logical) Class TPlaceService
+
+	Local cAliasQuery := GetNextAlias() as character
+	Local cQuery := "" as character
+	Local cWhere := "WHERE (1=1) " as character
+	Local oModel := Nil as object
+
+	Local nStartPage := 1 as numeric
+	Local nCount := 0 as numeric
+	Local nDataSize := 0 as numeric
+	Local nLastPage := 1 as numeric
+
+	Local oList := ArrayList():New() as object
+	Local oPlaceData := JsonObject():New() as object
+
+	Default nRecord := 0
+
+	begin sequence
+
+		if !Empty(cSearch)
+
+			cWhere += "AND (A.ABS_LOCAL LIKE '%" + AllTrim(cSearch) + "%' OR "
+			cWhere += "A.ABS_DESCRI LIKE '%" + AllTrim(cSearch) + "%' ) "
+
+		endif
+
+		cQuery := "SELECT A.ABS_FILIAL, A.ABS_LOCAL, A.ABS_DESCRI, A.ABS_ENTIDA, A.ABS_CODIGO, A.ABS_LOJA, A.ABS_REGIAO, A.ABS_END, A.ABS_BAIRRO, A.ABS_MUNIC, "
+		cQuery += "A.ABS_ESTADO, A.ABS_CEP  "
+		cQuery += "FROM "+RetSQLName("ABS")+" A "
+		cQuery += cWhere
+		cQuery += "AND A.D_E_L_E_T_ = '' "
+
+		If Select(cAliasQuery) > 0
+
+			( cAliasQuery )->( DbCloseArea() )
+
+		EndIf
+
+		TcQuery cQuery New Alias (cAliasQuery)
+
+		if ( cAliasQuery )->( !Eof() )
+
+			COUNT TO nRecord
+
+			if lAllPage
+				nPage := 1
+				nPerPage := nRecord
+			endif
+
+			if nPage > 1
+
+				nStartPage := ( ( nPage - 1 ) * nPerPage ) + 1
+				nDataSize := nRecord - nStartPage + 1
+
+			else
+
+				nDataSize := nRecord
+
+			endif
+
+			nLastPage := if(NoRound(nRecord / nPerPage, 2) >= 1.01, NoRound(nRecord / nPerPage, 0) + 1, NoRound(nRecord / nPerPage, 0) ) // arrendodamento
+
+			(cAliasQuery)->(DbGoTop())
+
+		endif
+
+
+		While (cAliasQuery)->(!EOF())
+
+			nCount++
+
+			if nCount >= nStartPage
+
+				oModel := TPlaceModel():New()
+
+				oModel:cBranchCode := AllTrim( (cAliasQuery)->ABS_FILIAL )
+				oModel:cCode := AllTrim( (cAliasQuery)->ABS_LOCAL)
+				oModel:cDescription := AllTrim( (cAliasQuery)->ABS_DESCRI)
+				oModel:cEntityType := AllTrim( (cAliasQuery)->ABS_ENTIDA)
+				oModel:cCustomerId := AllTrim( (cAliasQuery)->ABS_CODIGO)
+				oModel:cCustomerStore := AllTrim( (cAliasQuery)->ABS_LOJA)
+				oModel:cCustomerStore := AllTrim( (cAliasQuery)->ABS_LOJA)
+				oModel:cRegion := AllTrim( (cAliasQuery)->ABS_REGIAO)
+				oModel:cAddress := AllTrim( (cAliasQuery)->ABS_END)
+				oModel:cNeighborhood := AllTrim( (cAliasQuery)->ABS_BAIRRO)
+				oModel:cCity := AllTrim( (cAliasQuery)->ABS_MUNIC)
+				oModel:cState := AllTrim( (cAliasQuery)->ABS_ESTADO)
+				oModel:cZipCode := AllTrim( (cAliasQuery)->ABS_CEP)
+
+				oList:Add( oModel )
+
+				if !lAllPage .and. oList:getCount() >= nPerPage
+					exit
+				endif
+
+			endif
+
+			(cAliasQuery)->(DBSkip())
+
+		EndDo
+
+		oPlaceData["page"] := nPage
+		oPlaceData["per_page"] := nPerPage
+		oPlaceData["total"] := nRecord
+		oPlaceData["last_page"] := nLastPage
+		oPlaceData["data"] := oList
+
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oPlaceData)
+
+Method Store(oPlacesList as object) Class TPlaceService
+
+	Local aArea := GetArea() as array
+	local nIndex := 0 as numeric
+	Local nOperation := 3 as numeric // INCLUSÃO
+	Local oErrorJson := Nil as object
+
+	Local oModel := Nil as object
+	Local oABSMod := Nil as object
+
+	begin sequence
+
+		for nIndex := 1 to oPlacesList:GetCount()
+
+			oErrorJson := JsonObject():New()
+
+			oModel := FwLoadModel("TECA160")
+			oABSMod := oModel:GetModel("ABSMASTER")
+			oModel:SetOperation(nOperation)
+			oModel:Activate()
+
+			oABSMod:SetValue( "ABS_FILIAL", FWxFilial("ABS") )
+			oABSMod:SetValue( "ABS_DESCRI", Upper(AllTrim(oPlacesList:GetItem(nIndex):cDescription)) )
+			oABSMod:SetValue( "ABS_ENTIDA", Upper(AllTrim(oPlacesList:GetItem(nIndex):cEntityType)) )
+			oABSMod:SetValue( "ABS_CODIGO", Upper(AllTrim(oPlacesList:GetItem(nIndex):cCustomerId)) )
+			oABSMod:SetValue( "ABS_LOJA", Upper(AllTrim(oPlacesList:GetItem(nIndex):cCustomerStore)) )
+			oABSMod:SetValue( "ABS_REGIAO", Upper(AllTrim(oPlacesList:GetItem(nIndex):cRegion)) )
+			oABSMod:SetValue( "ABS_END", Upper(AllTrim(oPlacesList:GetItem(nIndex):cAddress)) )
+			oABSMod:SetValue( "ABS_BAIRRO", Upper(AllTrim(oPlacesList:GetItem(nIndex):cNeighborhood)) )
+			oABSMod:SetValue( "ABS_MUNIC", Upper(AllTrim(oPlacesList:GetItem(nIndex):cCity)) )
+			oABSMod:SetValue( "ABS_ESTADO", Upper(AllTrim(oPlacesList:GetItem(nIndex):cState)) )
+			oABSMod:SetValue( "ABS_CEP", Upper(AllTrim(oPlacesList:GetItem(nIndex):cZipCode)) )
+
+			if oModel:VldData()
+
+				oPlacesList:GetItem(nIndex):cCode := M->ABS_LOCAL
+				oModel:CommitData()
+
+			else
+
+				RollbackSx8()
+
+				oErrorJson["type"] := "E_EXECAUTO"
+				oErrorJson["message"] := "Erro ao cadastrar Localidade no Protheus. Favor verificar os campos!"
+				oErrorJson["error"] := ::ErrorMVC(oModel:GetErrorMessage())
+				aAdd(oPlacesList:GetItem(nIndex):aErrors, oErrorJson)
+
+			endif
+
+			oModel:DeActivate()
+			oModel:Destroy()
+
+		next nIndex
+
+	end sequence
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return(oPlacesList)
+
+Method Update(oPlacesList as object) Class TPlaceService
+
+	Local aArea := GetArea() as array
+	local nIndex := 0 as numeric
+	Local nOperation := 4 as numeric // ALTERAÇÃO
+	Local oErrorJson := Nil as object
+
+	Local oModel := Nil as object
+	Local oABSMod := Nil as object
+  Local oPlace := Nil as object
+
+	begin sequence
+
+		for nIndex := 1 to oPlacesList:GetCount()
+
+			oErrorJson := JsonObject():New()
+
+      oPlace := ::FindById(oPlacesList:GetItem(nIndex):cCode)
+
+			if (!oPlace["data"]:GetCount() > 0)
+
+				oErrorJson["type"] := EncodeUTF8("E_VALIDATION")
+				oErrorJson["message"] := EncodeUTF8("Localidade com o id " + oPlacesList:GetItem(nIndex):cCode + " não existe no Protheus.")
+				aAdd(oPlacesList:GetItem(nIndex):aErrors, oErrorJson)
+
+				loop
+			endif
+
+			oModel := FwLoadModel("TECA160")
+			oABSMod := oModel:GetModel("ABSMASTER")
+			oModel:SetOperation(nOperation)
+			oModel:Activate()
+
+			oABSMod:SetValue( "ABS_FILIAL", oPlace["data"]:GetItem(1):cBranchCode)
+			oABSMod:SetValue( "ABS_LOCAL",oPlace["data"]:GetItem(1):cCode )
+			oABSMod:SetValue( "ABS_DESCRI", Upper(AllTrim(oPlacesList:GetItem(nIndex):cDescription)) )
+			oABSMod:SetValue( "ABS_ENTIDA", Upper(AllTrim(oPlacesList:GetItem(nIndex):cEntityType)) )
+			oABSMod:SetValue( "ABS_CODIGO", Upper(AllTrim(oPlacesList:GetItem(nIndex):cCustomerId)) )
+			oABSMod:SetValue( "ABS_LOJA", Upper(AllTrim(oPlacesList:GetItem(nIndex):cCustomerStore)) )
+			oABSMod:SetValue( "ABS_REGIAO", Upper(AllTrim(oPlacesList:GetItem(nIndex):cRegion)) )
+			oABSMod:SetValue( "ABS_END", Upper(AllTrim(oPlacesList:GetItem(nIndex):cAddress)))
+			oABSMod:SetValue( "ABS_BAIRRO", Upper(AllTrim(FwNoAccent(oPlacesList:GetItem(nIndex):cNeighborhood))) )
+			oABSMod:SetValue( "ABS_MUNIC", Upper(AllTrim(oPlacesList:GetItem(nIndex):cCity)))
+			oABSMod:SetValue( "ABS_ESTADO", Upper(AllTrim(oPlacesList:GetItem(nIndex):cState)) )
+			oABSMod:SetValue( "ABS_CEP", Upper(AllTrim(oPlacesList:GetItem(nIndex):cZipCode)) )
+
+			if oModel:VldData()
+
+				oModel:CommitData()
+
+			else
+
+				oErrorJson["type"] := "E_EXECAUTO"
+				oErrorJson["message"] := "Erro ao atualizar Localidade no Protheus. Favor verificar os campos!"
+				oErrorJson["error"] := ::ErrorMVC(oModel:GetErrorMessage())
+				aAdd(oPlacesList:GetItem(nIndex):aErrors, oErrorJson)
+
+			endif
+
+			oModel:DeActivate()
+			oModel:Destroy()
+
+		next nIndex
+
+	end sequence
+
+	if !Empty(cError)
+
+		RestArea(aArea)
+
+		break
+
+	endif
+
+	RestArea(aArea)
+
+Return(oPlacesList)
+
+Method Show(cPlaceId as character) Class TPlaceService
+
+	Local oErrorJson := Nil as object
+	Local oPlace := JsonObject():New() as object
+
+	begin sequence
+
+		oPlace := ::FindById(cPlaceId)
+
+		oErrorJson := JsonObject():New()
+
+		if (!oPlace["data"]:GetCount() > 0)
+
+			cError := EncodeUTF8("Equipamento/Produto com o id " + cPlaceId + " não existe no Protheus.")
+
+			break
+
+		endif
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oPlace)
+
+Method ErrorMVC(aError as array) Class TPlaceService
+
+	Local oErrorParsed := JsonObject():New() as object
+	Local aErrorParsed := {} as array
+
+	oErrorParsed["campo"] := aError[4]
+	oErrorParsed["tipo_erro"] := aError[5]
+	oErrorParsed["mensagem"] := EncodeUTF8(aError[6])
+
+	aAdd(aErrorParsed, oErrorParsed)
+
+Return(aErrorParsed)
+
+Method FindById(cPlaceId as character) Class TPlaceService
+
+	Local oModel := Nil as object
+	Local oList := ArrayList():New() as object
+	Local oPlaceData := JsonObject():New() as object
+
+	begin sequence
+
+		if Empty(cPlaceId)
+
+			cError := EncodeUTF8("o campo ID é obrigatório para buscar o Localidade")
+
+			break
+
+		endif
+
+
+		ABS->( dbSetOrder(1))
+		If !ABS->(dbSeek(xFilial("ABS")+cPlaceId))
+
+			oPlaceData["page"] := 1
+			oPlaceData["per_page"] := 1
+			oPlaceData["total"] := 1
+			oPlaceData["last_page"] := 1
+			oPlaceData["data"] := oList
+
+			Return(oPlaceData)
+
+		EndIf
+
+		oModel := TPlaceModel():New()
+
+		oModel:cBranchCode := AllTrim( ABS->ABS_FILIAL )
+		oModel:cCode := AllTrim( ABS->ABS_LOCAL)
+		oModel:cDescription := AllTrim( ABS->ABS_DESCRI)
+		oModel:cEntityType := AllTrim( ABS->ABS_ENTIDA)
+		oModel:cCustomerId := AllTrim( ABS->ABS_CODIGO)
+		oModel:cCustomerStore := AllTrim( ABS->ABS_LOJA)
+		oModel:cCustomerStore := AllTrim( ABS->ABS_LOJA)
+		oModel:cRegion := AllTrim( ABS->ABS_REGIAO)
+		oModel:cAddress := AllTrim( ABS->ABS_END)
+		oModel:cNeighborhood := AllTrim( ABS->ABS_BAIRRO)
+		oModel:cCity := AllTrim( ABS->ABS_MUNIC)
+		oModel:cState := AllTrim( ABS->ABS_ESTADO)
+		oModel:cZipCode := AllTrim( ABS->ABS_CEP)
+
+		oList:Add( oModel )
+
+		oPlaceData["page"] := 1
+		oPlaceData["per_page"] := 1
+		oPlaceData["total"] := 1
+		oPlaceData["last_page"] := 1
+		oPlaceData["data"] := oList
+
+	end sequence
+
+	if !Empty(cError)
+
+		break
+
+	endif
+
+Return(oPlaceData)

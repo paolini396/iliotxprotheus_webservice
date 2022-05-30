@@ -1,0 +1,35 @@
+#INCLUDE 'TOTVS.CH'
+#INCLUDE 'TOPCONN.CH'
+
+/*/{Protheus.doc} TCityModel::New
+  Modelo de dados da classe
+  @type class
+  @author Gabriel Paolini - Facile Sistemas
+  @since 22/04/2022
+  @version 1.0
+  /*/
+
+Class TCityModel
+
+	Public Data cState as character       // CC2_EST
+	Public Data cCode as character       // CC2_CODMUN
+	Public Data cName as character       // CC2_MUN
+
+	Public Method New() Constructor
+
+EndClass
+
+/*/{Protheus.doc} TCityModel::New
+  Método construtor da classe
+  @type method
+  @author Gabriel Paolini - Facile Sistemas
+  @since 22/04/2022
+  @version 1.0
+  /*/
+Method New() Class TCityModel
+
+	::cState := ""
+	::cCode  := ""
+	::cName  := ""
+
+Return
